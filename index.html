@@ -10,6 +10,7 @@
 </head>
 <body>
 <main class="game" id="game" data-era="starter">
+  <div class="factory-backdrop" aria-hidden="true"><img src="assets/backgrounds/factory-night.svg" alt=""><span class="mist mist-one"></span><span class="mist mist-two"></span><span class="scanline"></span></div>
   <header class="topbar">
     <div><div class="eyebrow">BRAINROT FACTORY <span>•</span> v0.3</div><h1>67</h1></div>
     <div class="stats"><div class="stat"><span>Уровень</span><b id="level">1</b></div><div class="stat"><span>Доход/сек</span><b id="income">0</b></div></div>
@@ -41,6 +42,14 @@
 
   <section class="panel evolution-panel"><div class="panel-title"><h2>МУТАЦИЯ ФАБРИКИ</h2><span id="nextUnlock">5K</span></div>
     <div class="progress"><div id="progressBar"></div></div><div class="evolution-art" id="evolutionArt">67</div><div class="evolution" id="evolution">🟡 67</div><div class="evolution-sub" id="evolutionSub">Собери энергию для следующей мутации.</div>
+  </section>
+
+  <section class="panel activity-panel"><div class="panel-title"><h2>АКТИВНОСТИ ЦЕХА</h2><span id="scrapCount">⚙ 0 деталей</span></div>
+    <div class="activity-grid">
+      <button class="activity-card" id="questBtn"><span class="activity-icon">📋</span><span><b>Сменное задание</b><small id="questStatus">Нажми 67 раз</small></span><em id="questProgress">0/67</em></button>
+      <button class="activity-card" id="researchBtn"><span class="activity-icon">🧪</span><span><b>Лаборатория</b><small id="researchStatus">Постоянные усиления</small></span><em id="researchLevel">0/9</em></button>
+      <button class="activity-card" id="relicBtn"><span class="activity-icon">🃏</span><span><b>Архив артефактов</b><small id="relicStatus">Коллекция бонусов</small></span><em id="relicCount">0/6</em></button>
+    </div>
   </section>
 
   <section class="panel prestige-panel"><div class="panel-title"><h2>ПРЕСТИЖ</h2><span id="prestigeBonus">+0%</span></div><p>Перезапусти цех, сохрани коллекцию и получи постоянный бонус к каждому новому забегу.</p><button class="prestige-btn" id="prestigeBtn" disabled>ПЕРЕЗАПУСК — 2M</button></section>
