@@ -3,118 +3,51 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#11111b">
   <title>67: Brainrot Factory</title>
   <link rel="stylesheet" href="style.css">
-  <script src="/sdk.js" async onload="initYandexSDK()"></script>
+  <script src="https://yandex.ru/games/sdk/v2" defer></script>
 </head>
 <body>
-<main class="game">
+<main class="game" id="game" data-era="starter">
   <header class="topbar">
-    <div>
-      <div class="eyebrow">BRAINROT FACTORY • v0.2</div>
-      <h1>67</h1>
-    </div>
-    <div class="stats">
-      <div class="stat"><span>Уровень</span><b id="level">1</b></div>
-      <div class="stat"><span>Доход/сек</span><b id="income">0</b></div>
-    </div>
+    <div><div class="eyebrow">BRAINROT FACTORY <span>•</span> v0.3</div><h1>67</h1></div>
+    <div class="stats"><div class="stat"><span>Уровень</span><b id="level">1</b></div><div class="stat"><span>Доход/сек</span><b id="income">0</b></div></div>
   </header>
 
-  <section class="hero">
+  <section class="hero" aria-live="polite">
     <div class="rank" id="rank">НОВИЧОК</div>
-    <div class="counter" id="coins">0</div>
-    <div class="counter-label">БРЕЙНРОТ</div>
-
-    <button class="clicker" id="clicker" aria-label="Кликнуть">
-      <span class="clicker-glow"></span>
-      <span class="clicker-number">67</span>
-      <span class="clicker-caption">КЛИКАЙ</span>
+    <div class="counter" id="coins">0</div><div class="counter-label">БРЕЙНРОТ-ЭНЕРГИЯ</div>
+    <button class="clicker" id="clicker" aria-label="Произвести 67">
+      <span class="clicker-glow"></span><span class="clicker-spark spark-a">✦</span><span class="clicker-spark spark-b">✦</span>
+      <span class="clicker-number">67</span><span class="clicker-caption">ПРОИЗВЕСТИ</span>
     </button>
-
-    <div class="combo-wrap">
-      <div class="combo-label">КОМБО <b id="combo">x1</b></div>
-      <div class="combo-bar"><div id="comboBar"></div></div>
-    </div>
-
-    <div class="boost-row">
-      <button class="boost" id="rewardedBtn">
-        <span>🔥</span>
-        <span><b>БУСТ ×3</b><small>за рекламу</small></span>
-      </button>
-      <div class="boost-active" id="boostActive"></div>
-    </div>
+    <div class="combo-wrap"><div class="combo-label"><span>КОМБО</span><b id="combo">×1</b></div><div class="combo-bar"><div id="comboBar"></div></div></div>
+    <div class="boost-row"><button class="boost" id="rewardedBtn"><span>🔥</span><span><b>БУСТ ×3</b><small>за рекламу · 60 сек</small></span></button><div class="boost-active" id="boostActive"></div></div>
   </section>
 
   <section class="quick-actions">
-    <button id="collectionBtn">🧠 <span>Коллекция</span><b id="collectionCount">1/7</b></button>
-    <button id="achievementsBtn">🏆 <span>Ачивки</span><b id="achievementCount">0/8</b></button>
+    <button id="collectionBtn">🧠 <span>Коллекция</span><b id="collectionCount">1/6</b></button>
+    <button id="achievementsBtn">🏆 <span>Ачивки</span><b id="achievementCount">0/10</b></button>
+    <button id="dailyBtn">🎁 <span>Фабричная смена</span><b id="dailyStatus">ГОТОВО</b></button>
   </section>
 
-  <section class="panel">
-    <div class="panel-title">
-      <h2>УЛУЧШЕНИЯ</h2>
-      <span id="prestige">Престиж: 0</span>
-    </div>
-
-    <button class="upgrade" id="powerUpgrade">
-      <span class="icon">👆</span>
-      <span class="upgrade-main"><b>Сила клика <em id="powerLevel">LVL 1</em></b><small>Увеличивает доход каждого клика</small></span>
-      <span class="price" id="powerPrice">10</span>
-    </button>
-
-    <button class="upgrade" id="autoUpgrade">
-      <span class="icon">⚙️</span>
-      <span class="upgrade-main"><b>Автокликер <em id="autoLevel">LVL 0</em></b><small>Пассивный доход каждую секунду</small></span>
-      <span class="price" id="autoPrice">50</span>
-    </button>
-
-    <button class="upgrade" id="critUpgrade">
-      <span class="icon">💥</span>
-      <span class="upgrade-main"><b>Критический клик <em id="critLevel">LVL 0</em></b><small>Шанс огромного критического удара</small></span>
-      <span class="price" id="critPrice">250</span>
-    </button>
-
-    <button class="upgrade" id="factoryUpgrade">
-      <span class="icon">🏭</span>
-      <span class="upgrade-main"><b>Мемная фабрика <em id="factoryLevel">LVL 0</em></b><small>+10% ко всему доходу</small></span>
-      <span class="price" id="factoryPrice">1K</span>
-    </button>
+  <section class="panel shop-panel"><div class="panel-title"><h2>ЦЕХ УЛУЧШЕНИЙ</h2><span>Покупка — это прогресс</span></div>
+    <button class="upgrade" id="powerUpgrade"><span class="icon">👆</span><span class="upgrade-main"><b>Сила клика <em id="powerLevel">LVL 1</em></b><small id="powerDescription">Больше энергии за касание</small></span><span class="price" id="powerPrice">35</span></button>
+    <button class="upgrade" id="autoUpgrade"><span class="icon">⚙️</span><span class="upgrade-main"><b>Конвейер <em id="autoLevel">LVL 0</em></b><small id="autoDescription">Пассивная энергия каждую секунду</small></span><span class="price" id="autoPrice">180</span></button>
+    <button class="upgrade" id="critUpgrade"><span class="icon">💥</span><span class="upgrade-main"><b>Перегрузка <em id="critLevel">LVL 0</em></b><small id="critDescription">Шанс клика ×10</small></span><span class="price" id="critPrice">1.2K</span></button>
+    <button class="upgrade" id="factoryUpgrade"><span class="icon">🏭</span><span class="upgrade-main"><b>Мемная фабрика <em id="factoryLevel">LVL 0</em></b><small id="factoryDescription">+12% ко всему производству</small></span><span class="price" id="factoryPrice">7.5K</span></button>
   </section>
 
-  <section class="panel">
-    <div class="panel-title">
-      <h2>ЭВОЛЮЦИЯ</h2>
-      <span id="nextUnlock">100</span>
-    </div>
-    <div class="progress"><div id="progressBar"></div></div>
-    <div class="evolution" id="evolution">67</div>
-    <div class="evolution-sub" id="evolutionSub">Следующая мутация скоро...</div>
+  <section class="panel evolution-panel"><div class="panel-title"><h2>МУТАЦИЯ ФАБРИКИ</h2><span id="nextUnlock">5K</span></div>
+    <div class="progress"><div id="progressBar"></div></div><div class="evolution-art" id="evolutionArt">67</div><div class="evolution" id="evolution">🟡 67</div><div class="evolution-sub" id="evolutionSub">Собери энергию для следующей мутации.</div>
   </section>
 
-  <section class="panel prestige-panel">
-    <div class="panel-title">
-      <h2>ПРЕСТИЖ</h2>
-      <span id="prestigeBonus">+0%</span>
-    </div>
-    <p>Сбрось прогресс и получи постоянный бонус. Чем выше престиж — тем быстрее следующий забег.</p>
-    <button class="prestige-btn" id="prestigeBtn" disabled>ПРЕСТИЖ — 100K</button>
-  </section>
-
-  <footer>
-    <button id="soundBtn">🔊 Звук</button>
-    <button id="resetBtn">Сбросить прогресс</button>
-  </footer>
+  <section class="panel prestige-panel"><div class="panel-title"><h2>ПРЕСТИЖ</h2><span id="prestigeBonus">+0%</span></div><p>Перезапусти цех, сохрани коллекцию и получи постоянный бонус к каждому новому забегу.</p><button class="prestige-btn" id="prestigeBtn" disabled>ПЕРЕЗАПУСК — 2M</button></section>
+  <footer><button id="soundBtn">🔊 Звук</button><button id="helpBtn">Как играть</button><button id="resetBtn">Сбросить прогресс</button></footer>
 </main>
-
-<div class="toast" id="toast"></div>
-
-<div class="modal hidden" id="modal">
-  <div class="modal-card">
-    <button class="modal-close" id="modalClose">×</button>
-    <div id="modalContent"></div>
-  </div>
-</div>
-
-<script src="game.js"></script>
+<div class="toast" id="toast" role="status"></div>
+<div class="modal hidden" id="modal" role="dialog" aria-modal="true"><div class="modal-card"><button class="modal-close" id="modalClose" aria-label="Закрыть">×</button><div id="modalContent"></div></div></div>
+<script src="game.js" defer></script>
 </body>
 </html>
