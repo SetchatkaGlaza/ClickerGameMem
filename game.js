@@ -1,220 +1,179 @@
-const SAVE_KEY = "brainrot67_save_v3";
-const SAVE_INTERVAL = 5;
-const OFFLINE_CAP_SECONDS = 4 * 60 * 60;
-const EVENT_COOLDOWN = 30000;
+const SAVE_KEY = "brainrot_vault_v5";
+const SAVE_EVERY_SECONDS = 5;
+const OFFLINE_CAP = 4 * 60 * 60;
+const COMBO_WINDOW = 1800;
+const EXPEDITION_SECONDS = 30;
 
 let ysdk = null;
 let gameplayActive = false;
-let state = {
-  coins: 0, clickPower: 1, autoPower: 0, critLevel: 0, factoryLevel: 0, prestige: 0,
-  boostUntil: 0, combo: 1, comboUntil: 0, totalClicks: 0, totalEarned: 0,
-  sound: true, unlocked: [true, false, false, false, false, false], achievements: [],
-  lastSave: Date.now(), lastDaily: 0, lastEvent: 0, eventCount: 0,
-  scrap: 0, research: [0, 0, 0], relics: [false, false, false, false, false, false], questClaimedDay: ""
-};
+let audioContext = null;
+let state = defaultState();
 
-const EVOLUTIONS = [
-  { at: 0, name: "67", emoji: "🟡", art: "67", era: "starter", sub: "Первый закон фабрики: нажми 67 раз." },
-  { at: 10000, name: "67 ULTRA", emoji: "🟠", art: "67+", era: "ultra", sub: "Конвейер начал шептать цифры." },
-  { at: 250000, name: "BRAINROT", emoji: "🧠", art: "BR", era: "brainrot", sub: "Абсурд стабильно производится серийно." },
-  { at: 5000000, name: "GIGA 67", emoji: "🔥", art: "GIGA", era: "giga", sub: "Цех виден из космоса. Наверное." },
-  { at: 100000000, name: "ABSOLUTE", emoji: "💀", art: "?!", era: "absolute", sub: "Счётчик перестал быть просто счётчиком." },
-  { at: 2500000000, name: "SECRET 67", emoji: "👑", art: "∞", era: "secret", sub: "Ты нашёл главный предохранитель." }
+function defaultState() {
+  return {
+    coins: 0, vault: 0, safeLevel: 0, clickPower: 1, critLevel: 0, prestige: 0,
+    generators: [0, 0, 0, 0, 0], research: [0, 0, 0], relics: [false, false, false, false, false, false],
+    totalGenerated: 0, totalClicks: 0, combo: 1, comboUntil: 0, boostUntil: 0,
+    dailyKey: "", dailyClaimed: false, dailyClicks: 0, dailyCollected: 0, dailyGenerated: 0,
+    expeditionUntil: 0, expeditionClaimable: false, expeditionCooldownUntil: 0,
+    goldenUntil: 0, goldenCooldownUntil: 0, achievements: [], sound: true, lastSave: Date.now()
+  };
+}
+
+const GENERATORS = [
+  { icon: "🧃", name: "67-ларёк", desc: "Банкует базовый мем", base: 800, growth: 1.17, rate: 1 },
+  { icon: "🤖", name: "Кринж-бот", desc: "Жмёт за тебя", base: 8000, growth: 1.19, rate: 8 },
+  { icon: "🖨️", name: "Мем-принтер", desc: "Печатает абсурд", base: 90000, growth: 1.22, rate: 65 },
+  { icon: "🧠", name: "Нейро-цех", desc: "Дистиллирует брейнрот", base: 1200000, growth: 1.25, rate: 540 },
+  { icon: "🛸", name: "Гига-сервер", desc: "Шлёт мемы из космоса", base: 20000000, growth: 1.28, rate: 4800 }
 ];
-
+const EVOLUTIONS = [
+  { at: 0, icon: "🧃", name: "67-ЛАРЁК", sub: "Первый цех только открылся.", theme: "starter" },
+  { at: 50000, icon: "🤖", name: "УЛЬТРА-КОНВЕЙЕР", sub: "Роботы знают слово «ещё». ", theme: "ultra" },
+  { at: 2000000, icon: "🧠", name: "BRAINROT БАНК", sub: "Сейф начал думать самостоятельно.", theme: "brain" },
+  { at: 100000000, icon: "🛸", name: "GIGA-МЕМПОЛИС", sub: "Фабрика захватила ночной город.", theme: "giga" },
+  { at: 5000000000, icon: "💀", name: "АБСОЛЮТНЫЙ СЕЙФ", sub: "Числа больше не имеют смысла.", theme: "absolute" },
+  { at: 250000000000, icon: "👑", name: "СЕКРЕТНЫЙ 67", sub: "Ты дошёл до финального протокола.", theme: "secret" }
+];
 const ACHIEVEMENTS = [
-  ["👆", "Первый импульс", "Сделать 1 клик", () => state.totalClicks >= 1],
-  ["6️⃣7️⃣", "Ритм 67", "Сделать 67 кликов", () => state.totalClicks >= 67],
-  ["🔥", "На скорости", "Достичь комбо ×5", () => state.combo >= 5],
-  ["💰", "Первая пачка", "Заработать 5 000 энергии", () => state.totalEarned >= 5000],
-  ["⚙️", "Конвейер запущен", "Купить первый конвейер", () => state.autoPower >= 1],
-  ["💥", "Перегрузка", "Купить первый уровень перегрузки", () => state.critLevel >= 1],
-  ["🏭", "Есть производство", "Купить мемную фабрику", () => state.factoryLevel >= 1],
-  ["🎁", "Полная смена", "Забрать фабричную смену", () => state.lastDaily > 0],
-  ["♻️", "Новый цикл", "Сделать престиж", () => state.prestige >= 1],
-  ["👑", "Выше нормы", "Открыть GIGA 67", () => state.unlocked[3]]
+  ["👆", "Первая монета", "Сделать первый жмак", () => state.totalClicks >= 1],
+  ["🔐", "Инкассатор", "Забрать 500 из сейфа", () => state.dailyCollected >= 500 || state.totalGenerated >= 500],
+  ["🤖", "Автоматизация", "Купить Кринж-бота", () => state.generators[1] >= 1],
+  ["📋", "Контрактник", "Выполнить сменный контракт", () => state.dailyClaimed],
+  ["🛸", "Экспедитор", "Забрать первую вылазку", () => state.relics[0]],
+  ["⚡", "Перегрузка", "Получить критический жмак", () => state.critLevel > 0],
+  ["🧪", "Лаборант", "Купить исследование", () => state.research.some(Boolean)],
+  ["💰", "Первая сотня K", "Создать 100K энергии", () => state.totalGenerated >= 100000],
+  ["♻️", "Перерождение", "Перезапустить фабрику", () => state.prestige >= 1],
+  ["👑", "Мемный магнат", "Открыть GIGA-МЕМПОЛИС", () => state.totalGenerated >= 100000000]
 ];
 
 const $ = id => document.getElementById(id);
 const fmt = number => {
   if (!Number.isFinite(number)) return "0";
   if (number < 1000) return Math.floor(number).toString();
-  const units = ["K", "M", "B", "T", "Qa", "Qi"];
-  let unit = -1, value = number;
+  const units = ["K", "M", "B", "T", "Qa"]; let value = number; let unit = -1;
   while (value >= 1000 && unit < units.length - 1) { value /= 1000; unit++; }
-  return value.toFixed(value >= 100 ? 0 : value >= 10 ? 1 : 2) + units[unit];
+  return `${value.toFixed(value >= 100 ? 0 : value >= 10 ? 1 : 2)}${units[unit]}`;
 };
-const pluralSeconds = seconds => `${seconds} сек`;
-
-function powerPrice() { return Math.floor(75 * Math.pow(1.85, state.clickPower - 1)); }
-function autoPrice() { return Math.floor(500 * Math.pow(1.95, state.autoPower)); }
-function critPrice() { return Math.floor(7500 * Math.pow(2.25, state.critLevel)); }
-function factoryPrice() { return Math.floor(40000 * Math.pow(2.9, state.factoryLevel)); }
-function prestigeCost() { return 25000000 * Math.pow(10, state.prestige); }
-function researchMultiplier() { return 1 + state.research[0] * .06 + state.research[1] * .04 + state.research[2] * .03 + state.relics.filter(Boolean).length * .025; }
-function baseMultiplier() { return (1 + state.prestige * 0.1) * (1 + state.factoryLevel * 0.12) * researchMultiplier(); }
+const today = () => new Date().toISOString().slice(0, 10);
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+function generatorPrice(index) { const g = GENERATORS[index]; return Math.floor(g.base * Math.pow(g.growth, state.generators[index])); }
+function powerPrice() { return Math.floor(100 * Math.pow(1.8, state.clickPower - 1)); }
+function safePrice() { return Math.floor(400 * Math.pow(1.95, state.safeLevel)); }
+function critPrice() { return Math.floor(7500 * Math.pow(2.15, state.critLevel)); }
+function prestigeCost() { return 500000000 * Math.pow(8, state.prestige); }
+function safeCapacity() { return 500 * Math.pow(2, state.safeLevel); }
+function researchCost(index) { return 10 + state.research[index] * 10 + index * 8; }
+function relicMultiplier() { return 1 + state.relics.filter(Boolean).length * .03; }
+function baseMultiplier() { return (1 + state.prestige * .12) * (1 + state.research[0] * .07 + state.research[1] * .04 + state.research[2] * .025) * relicMultiplier(); }
 function multiplier() { return baseMultiplier() * (Date.now() < state.boostUntil ? 3 : 1); }
+function productionPerSecond() { return GENERATORS.reduce((sum, g, i) => sum + g.rate * state.generators[i], 0) * multiplier(); }
 function clickValue() { return state.clickPower * multiplier(); }
-function incomePerSecond() { return state.autoPower * multiplier(); }
-function evolutionMetric() { return Math.max(state.coins, state.totalEarned); }
+function currentEvolution() { let current = EVOLUTIONS[0]; for (const evo of EVOLUTIONS) if (state.totalGenerated >= evo.at) current = evo; return current; }
+function nextEvolution() { const current = currentEvolution(); return EVOLUTIONS[EVOLUTIONS.indexOf(current) + 1]; }
+function rankName() { const value = state.totalGenerated; if (value >= 5000000000) return "АБСОЛЮТ"; if (value >= 100000000) return "GIGA"; if (value >= 2000000) return "BRAINROT"; if (value >= 50000) return "УЛЬТРА"; if (value >= 5000) return "ЖМАКЕР"; return "НОВИЧОК"; }
 
-function currentEvolution() {
-  const metric = evolutionMetric(); let index = 0;
-  EVOLUTIONS.forEach((evo, i) => { if (metric >= evo.at) index = i; });
-  return { index, ...EVOLUTIONS[index], next: EVOLUTIONS[index + 1] };
-}
-function unlockEvolution() { state.unlocked[currentEvolution().index] = true; }
-function rankName() {
-  const value = evolutionMetric();
-  if (value >= 100000000) return "АБСОЛЮТ";
-  if (value >= 5000000) return "GIGA-МАСТЕР";
-  if (value >= 250000) return "BRAINROT-ИНЖЕНЕР";
-  if (value >= 10000) return "УЛЬТРА-СБОРЩИК";
-  if (value >= 500) return "РАЗОГРЕТ";
-  return "НОВИЧОК";
-}
-function canClaimDaily() { return Date.now() - state.lastDaily >= 20 * 60 * 60 * 1000; }
-function dayKey() { return new Date().toISOString().slice(0, 10); }
-function currentQuest() {
-  const quests = [
-    { title: "Ритм смены", detail: "Сделай 67 кликов", current: () => state.totalClicks % 670, target: 67, reward: 8 },
-    { title: "Тест конвейера", detail: "Накопи 25K энергии", current: () => Math.min(state.coins, 25000), target: 25000, reward: 12 },
-    { title: "Срочный заказ", detail: "Заработай 100K за всё время", current: () => Math.min(state.totalEarned, 100000), target: 100000, reward: 16 }
-  ];
-  return quests[Math.floor(Date.now() / 86400000) % quests.length];
-}
-function researchCost(index) { return 10 + state.research[index] * 8 + index * 6; }
-
-function load() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(SAVE_KEY) || localStorage.getItem("brainrot67_save_v2"));
-    if (saved && typeof saved === "object") state = { ...state, ...saved };
-  } catch (error) { console.warn("Не удалось прочитать сохранение", error); }
+function normalizeState() {
+  state.generators = Array.isArray(state.generators) ? [...state.generators, 0, 0, 0, 0, 0].slice(0, 5) : [0, 0, 0, 0, 0];
   state.research = Array.isArray(state.research) ? [...state.research, 0, 0, 0].slice(0, 3) : [0, 0, 0];
   state.relics = Array.isArray(state.relics) ? [...state.relics, false, false, false, false, false, false].slice(0, 6) : [false, false, false, false, false, false];
-  unlockEvolution();
-  const awaySeconds = Math.min(OFFLINE_CAP_SECONDS, Math.max(0, (Date.now() - state.lastSave) / 1000));
-  const offlineGain = state.autoPower * baseMultiplier() * awaySeconds;
-  if (offlineGain >= 1) {
-    state.coins += offlineGain; state.totalEarned += offlineGain;
-    setTimeout(() => showOfflineReward(offlineGain, Math.floor(awaySeconds)), 350);
-  }
+  if (state.dailyKey !== today()) { state.dailyKey = today(); state.dailyClaimed = false; state.dailyClicks = 0; state.dailyCollected = 0; state.dailyGenerated = 0; }
+  state.vault = clamp(Number(state.vault) || 0, 0, safeCapacity());
+}
+function load() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (saved && typeof saved === "object") state = { ...state, ...saved };
+  } catch (error) { console.warn("Сохранение не прочитано", error); }
+  normalizeState();
+  const seconds = clamp((Date.now() - state.lastSave) / 1000, 0, OFFLINE_CAP);
+  addToVault(productionPerSecond() * seconds, false);
+  if (seconds >= 20 && productionPerSecond() > 0) setTimeout(() => openModal("offline", { seconds, gain: productionPerSecond() * seconds }), 300);
 }
 function save() { state.lastSave = Date.now(); localStorage.setItem(SAVE_KEY, JSON.stringify(state)); }
 
-async function initYandexSDK() {
-  try {
-    if (!window.YaGames) return;
-    ysdk = await window.YaGames.init();
-    ysdk.features?.LoadingAPI?.ready();
-    startGameplay();
-  } catch (error) { console.warn("Yandex Games SDK недоступен:", error); }
-}
+async function initYandexSDK() { try { if (!window.YaGames) return; ysdk = await window.YaGames.init(); ysdk.features?.LoadingAPI?.ready(); startGameplay(); } catch (error) { console.warn("Yandex SDK недоступен", error); } }
 function startGameplay() { if (!gameplayActive) { ysdk?.features?.GameplayAPI?.start(); gameplayActive = true; } }
 function stopGameplay() { if (gameplayActive) { ysdk?.features?.GameplayAPI?.stop(); gameplayActive = false; } }
 
+function addToVault(amount, countGenerated = true) {
+  if (amount <= 0 || state.vault >= safeCapacity()) return 0;
+  const added = Math.min(amount, safeCapacity() - state.vault); state.vault += added;
+  if (countGenerated) { state.totalGenerated += added; state.dailyGenerated += added; }
+  checkAchievements(); return added;
+}
+function collectVault() {
+  if (state.vault < .5) { toast("Сейф пока пуст — запускай мемомёт"); return; }
+  const gain = state.vault; state.coins += gain; state.dailyCollected += gain; state.vault = 0;
+  toast(`🔐 В КОШЕЛЁК: +${fmt(gain)}`); beep(620, .09); checkAchievements(); save(); render();
+}
+function click(event) {
+  if (state.vault >= safeCapacity()) { toast("🔐 СЕЙФ ПОЛОН — забери партию!"); return; }
+  const now = Date.now(); state.combo = now < state.comboUntil ? Math.min(10, state.combo + 1) : 1; state.comboUntil = now + COMBO_WINDOW;
+  const critical = Math.random() < Math.min(.4, state.critLevel * .025); const gain = clickValue() * state.combo * (critical ? 10 : 1);
+  const added = addToVault(gain); state.totalClicks++; state.dailyClicks++;
+  const rect = $("clicker").getBoundingClientRect(); floatText(`${critical ? "⚡ GIGA +" : "+"}${fmt(added)}`, rect.left + rect.width / 2, rect.top + rect.height / 2, critical);
+  beep(critical ? 980 : 360 + state.combo * 24, critical ? .08 : .025); maybeGolden(now); save(); render();
+}
+function buyGenerator(index) { const price = generatorPrice(index); if (state.coins < price) return; state.coins -= price; state.generators[index]++; toast(`${GENERATORS[index].icon} ЦЕХ УЛУЧШЕН`); beep(720, .06); save(); render(); }
+function buyUpgrade(type) {
+  const map = { power: [powerPrice, "clickPower"], safe: [safePrice, "safeLevel"], crit: [critPrice, "critLevel"] }; const [getPrice, field] = map[type]; const price = getPrice();
+  if (state.coins < price) return; state.coins -= price; state[field]++; toast("УЛУЧШЕНИЕ УСТАНОВЛЕНО ✓"); beep(760, .06); save(); render();
+}
+function quest() {
+  const options = [
+    { name: "Ритм 67", text: "Сделай 67 жмаков", current: () => state.dailyClicks, target: 67, reward: 12 },
+    { name: "Инкассация", text: "Забери 10K из сейфа", current: () => state.dailyCollected, target: 10000, reward: 18 },
+    { name: "Мемный заказ", text: "Создай 50K энергии", current: () => state.dailyGenerated, target: 50000, reward: 24 }
+  ]; return options[Math.floor(Date.now() / 86400000) % options.length];
+}
+function claimQuest() { const q = quest(); if (state.dailyClaimed) return toast("Контракт уже закрыт сегодня"); if (q.current() < q.target) return toast("Контракт ещё не выполнен"); state.dailyClaimed = true; state.research[0] += 0; state.coins += q.reward * 100; state.relics[0] = true; toast(`📋 КОНТРАКТ: +${q.reward * 100} коинов`); save(); render(); }
+function claimDaily() { if (state.lastDaily === today()) return toast("Смена уже получена — завтра будет новая"); const gain = Math.max(350, clickValue() * 35 + productionPerSecond() * 90); state.lastDaily = today(); state.coins += gain; toast(`🎁 СМЕНА: +${fmt(gain)}`); beep(830, .12); save(); render(); }
+function startExpedition() { if (state.expeditionClaimable) return claimExpedition(); if (Date.now() < state.expeditionCooldownUntil) return toast("Вылазка готовится — попробуй чуть позже"); state.expeditionUntil = Date.now() + EXPEDITION_SECONDS * 1000; state.expeditionCooldownUntil = state.expeditionUntil + 90 * 1000; toast("🛸 ВЫЛАЗКА ОТПРАВЛЕНА!"); save(); render(); }
+function claimExpedition() { if (!state.expeditionClaimable) return; const gain = Math.max(1500, productionPerSecond() * 180 + clickValue() * 100); state.expeditionClaimable = false; state.coins += gain; const relicIndex = state.relics.findIndex(value => !value); if (relicIndex >= 0) state.relics[relicIndex] = true; toast(`🛸 ДОБЫЧА: +${fmt(gain)}`); beep(900, .12); save(); render(); }
+function buyResearch(index) { const cost = researchCost(index); if (state.coins < cost * 500) return toast(`Нужно ${fmt(cost * 500)} коинов`); state.coins -= cost * 500; state.research[index]++; toast("🧪 ТЕХНОЛОГИЯ УСИЛЕНА"); save(); render(); openModal("lab"); }
+function prestige() { const cost = prestigeCost(); if (state.totalGenerated < cost) return; state.prestige++; const relic = state.relics.findIndex(value => !value); if (relic >= 0) state.relics[relic] = true; const meta = { prestige: state.prestige, research: state.research, relics: state.relics, totalGenerated: state.totalGenerated, achievements: state.achievements, sound: state.sound }; state = { ...defaultState(), ...meta, dailyKey: today() }; toast("♻️ ФАБРИКА ПЕРЕЗАПУЩЕНА"); save(); render(); }
+function maybeGolden(now) { if (now < state.goldenCooldownUntil || $("goldenBtn").classList.contains("hidden") || Math.random() > .018) return; state.goldenUntil = now + 6500; state.goldenCooldownUntil = now + 70000; $("goldenBtn").classList.remove("hidden"); }
+function catchGolden() { if ($("goldenBtn").classList.contains("hidden")) return; $("goldenBtn").classList.add("hidden"); const gain = Math.max(300, clickValue() * 67); addToVault(gain); toast(`✨ ЗОЛОТОЙ МЕМ: +${fmt(gain)} в сейф`); beep(1040, .13); save(); render(); }
+function showRewarded() { if (!ysdk?.adv?.showRewardedVideo) return toast("Буст-видео будет доступно в Яндекс Играх"); stopGameplay(); ysdk.adv.showRewardedVideo({ callbacks: { onRewarded: () => { state.boostUntil = Date.now() + 60000; toast("🔥 БУСТ ×3 НА 60 СЕКУНД"); }, onClose: startGameplay, onError: startGameplay } }); }
+
+function renderGenerators() { $("generators").innerHTML = GENERATORS.map((g, index) => { const price = generatorPrice(index); return `<button class="generator" data-generator="${index}" ${state.coins < price ? "disabled" : ""}><span class="generator-icon">${g.icon}</span><span><b>${g.name} <em>×${state.generators[index]}</em></b><small>${g.desc} · +${fmt(g.rate * multiplier())}/сек</small></span><strong>${fmt(price)}</strong></button>`; }).join(""); document.querySelectorAll("[data-generator]").forEach(button => button.addEventListener("click", () => buyGenerator(Number(button.dataset.generator)))); }
 function render() {
-  unlockEvolution();
-  const evo = currentEvolution(), next = evo.next;
-  $("game").dataset.era = evo.era;
-  $("coins").textContent = fmt(state.coins); $("income").textContent = fmt(incomePerSecond());
-  $("level").textContent = Math.max(1, Math.floor(Math.log10(Math.max(1, state.totalEarned))) + 1); $("rank").textContent = rankName();
-  [["power", powerPrice(), state.clickPower], ["auto", autoPrice(), state.autoPower], ["crit", critPrice(), state.critLevel], ["factory", factoryPrice(), state.factoryLevel]].forEach(([name, price, level]) => {
-    $(`${name}Price`).textContent = fmt(price); $(`${name}Level`).textContent = `LVL ${level}`; $(`${name}Upgrade`).disabled = state.coins < price;
-  });
-  $("powerDescription").textContent = `+1 к касанию · сейчас ${fmt(clickValue())}`;
-  $("autoDescription").textContent = `+1/сек · сейчас ${fmt(incomePerSecond())}/сек`;
-  $("critDescription").textContent = `Шанс ${Math.min(35, state.critLevel * 2.5).toFixed(state.critLevel ? 1 : 0)}% · награда ×10`;
-  $("factoryDescription").textContent = `+12% ко всему · сейчас +${state.factoryLevel * 12}%`;
-  $("prestige").textContent = `Престиж: ${state.prestige}`; $("prestigeBonus").textContent = `+${state.prestige * 10}%`;
-  $("prestigeBtn").disabled = state.coins < prestigeCost(); $("prestigeBtn").textContent = `ПЕРЕЗАПУСК — ${fmt(prestigeCost())}`;
-  $("evolution").textContent = `${evo.emoji} ${evo.name}`; $("evolutionArt").textContent = evo.art;
-  $("evolutionSub").textContent = next ? `Следующая мутация: ${fmt(next.at)} · ${next.name}` : "Все мутации стабилизированы.";
-  $("nextUnlock").textContent = next ? fmt(next.at) : "MAX";
-  const start = evo.at, end = next?.at ?? evo.at;
-  $("progressBar").style.width = next ? `${Math.min(100, Math.max(0, (evolutionMetric() - start) / (end - start) * 100))}%` : "100%";
-  const remain = Math.max(0, Math.ceil((state.boostUntil - Date.now()) / 1000)); $("boostActive").textContent = remain ? `×3 · ${pluralSeconds(remain)}` : "";
-  const comboRemain = Math.max(0, state.comboUntil - Date.now()); $("combo").textContent = `×${state.combo}`; $("comboBar").style.width = `${Math.min(100, comboRemain / 1800 * 100)}%`;
-  $("achievementCount").textContent = `${state.achievements.length}/${ACHIEVEMENTS.length}`; $("collectionCount").textContent = `${state.unlocked.filter(Boolean).length}/${EVOLUTIONS.length}`;
-  $("dailyStatus").textContent = canClaimDaily() ? "ГОТОВО" : "ЗАВТРА"; $("dailyBtn").classList.toggle("ready", canClaimDaily());
-  const quest = currentQuest(), claimed = state.questClaimedDay === dayKey();
-  $("scrapCount").textContent = `⚙ ${fmt(state.scrap)} деталей`;
-  $("questStatus").textContent = claimed ? "Смена выполнена" : quest.detail;
-  $("questProgress").textContent = claimed ? "✓" : `${fmt(Math.min(quest.current(), quest.target))}/${fmt(quest.target)}`;
-  $("researchLevel").textContent = `${state.research.reduce((sum, level) => sum + level, 0)}/18`;
-  $("researchStatus").textContent = "Постоянные усиления";
-  $("relicCount").textContent = `${state.relics.filter(Boolean).length}/6`;
-  $("relicStatus").textContent = state.relics.some(Boolean) ? "+2.5% за каждый" : "Открываются в событиях";
+  normalizeState(); const capacity = safeCapacity(); const evo = currentEvolution(); const next = nextEvolution(); const full = state.vault >= capacity - .01;
+  $("game").dataset.theme = evo.theme; $("coins").textContent = fmt(state.coins); $("income").textContent = `${fmt(productionPerSecond())}/сек`; $("multiplierLabel").textContent = `множитель ×${multiplier().toFixed(2)}`;
+  $("rank").textContent = rankName(); $("prestige").textContent = state.prestige;
+  $("vaultStored").textContent = fmt(state.vault); $("vaultCapacity").textContent = fmt(capacity); $("vaultPercent").textContent = `${Math.floor(state.vault / capacity * 100)}%`; $("vaultBar").style.width = `${state.vault / capacity * 100}%`; $("vaultStatus").classList.toggle("full", full); $("vaultHint").textContent = full ? "СЕЙФ ПОЛОН — ЗАБЕРИ!" : `Свободно ${fmt(capacity - state.vault)}`;
+  $("combo").textContent = `×${state.combo}`; $("comboBar").style.width = `${clamp((state.comboUntil - Date.now()) / COMBO_WINDOW * 100, 0, 100)}%`;
+  $("powerPrice").textContent = fmt(powerPrice()); $("safePrice").textContent = fmt(safePrice()); $("critPrice").textContent = fmt(critPrice()); $("powerInfo").textContent = `+1 · сейчас ${fmt(clickValue())}`; $("safeInfo").textContent = `вместимость ${fmt(capacity)}`; $("critInfo").textContent = `${(state.critLevel * 2.5).toFixed(1)}% шанс ×10`; $("labInfo").textContent = `${state.research.reduce((a, b) => a + b, 0)} технологий`;
+  $("powerUpgrade").disabled = state.coins < powerPrice(); $("safeUpgrade").disabled = state.coins < safePrice(); $("critUpgrade").disabled = state.coins < critPrice();
+  $("dailyStatus").textContent = state.lastDaily === today() ? "ЗАВТРА" : "ГОТОВО"; const q = quest(); $("questStatus").textContent = state.dailyClaimed ? "ВЫПОЛНЕНО" : `${fmt(Math.min(q.current(), q.target))} / ${fmt(q.target)}`;
+  if (state.expeditionClaimable) $("expeditionStatus").textContent = "ЗАБРАТЬ"; else if (Date.now() < state.expeditionUntil) $("expeditionStatus").textContent = `${Math.ceil((state.expeditionUntil - Date.now()) / 1000)}с`; else if (Date.now() < state.expeditionCooldownUntil) $("expeditionStatus").textContent = `${Math.ceil((state.expeditionCooldownUntil - Date.now()) / 1000)}с`; else $("expeditionStatus").textContent = "ГОТОВО";
+  $("collectionCount").textContent = `${state.relics.filter(Boolean).length} / 6`; $("evolutionIcon").textContent = evo.icon; $("evolution").textContent = evo.name; $("evolutionSub").textContent = next ? `${evo.sub} Следующая цель: ${fmt(next.at)}.` : evo.sub; $("nextUnlock").textContent = next ? fmt(next.at) : "MAX"; const span = next ? next.at - evo.at : 1; $("evolutionBar").style.width = `${next ? clamp((state.totalGenerated - evo.at) / span * 100, 0, 100) : 100}%`;
+  $("prestigeCost").textContent = fmt(prestigeCost()); $("prestigeBonus").textContent = `+${state.prestige * 12}%`; $("prestigeBtn").disabled = state.totalGenerated < prestigeCost(); renderGenerators(); checkAchievements();
 }
 
-function toast(text) { const element = $("toast"); element.textContent = text; element.classList.add("show"); clearTimeout(toast.timer); toast.timer = setTimeout(() => element.classList.remove("show"), 1800); }
-function floatText(text, x, y, critical = false) { const element = document.createElement("div"); element.className = `float${critical ? " crit" : ""}`; element.textContent = text; element.style.left = `${x}px`; element.style.top = `${y}px`; document.body.appendChild(element); setTimeout(() => element.remove(), 800); }
-function beep(frequency = 440, duration = .04) {
-  if (!state.sound) return;
-  try { const Audio = window.AudioContext || window.webkitAudioContext, context = beep.context || (beep.context = new Audio()), osc = context.createOscillator(), gain = context.createGain(); osc.frequency.value = frequency; osc.type = "square"; gain.gain.value = .018; osc.connect(gain); gain.connect(context.destination); osc.start(); gain.gain.exponentialRampToValueAtTime(.0001, context.currentTime + duration); osc.stop(context.currentTime + duration); } catch (_) { /* audio is optional */ }
-}
-function checkAchievements() { ACHIEVEMENTS.forEach((achievement, index) => { if (!state.achievements.includes(index) && achievement[3]()) { state.achievements.push(index); toast(`🏆 ${achievement[1]}`); beep(880, .1); } }); }
-function award(amount) { state.coins += amount; state.totalEarned += amount; unlockEvolution(); checkAchievements(); }
-
-function click() {
-  const now = Date.now(); state.combo = now < state.comboUntil ? Math.min(10, state.combo + 1) : 1; state.comboUntil = now + 1800;
-  let gain = clickValue() * state.combo; const critical = Math.random() < Math.min(.35, state.critLevel * .025); if (critical) gain *= 10;
-  award(gain); state.totalClicks++;
-  const rect = $("clicker").getBoundingClientRect(); floatText(`${critical ? "💥 КРИТ! +" : "+"}${fmt(gain)}`, rect.left + rect.width / 2, rect.top + rect.height * .42, critical);
-  beep(critical ? 900 : 300 + state.combo * 25, critical ? .09 : .025); maybeEvent(now); save(); render();
-}
-function buy(type) {
-  const data = { power: [powerPrice, "clickPower"], auto: [autoPrice, "autoPower"], crit: [critPrice, "critLevel"], factory: [factoryPrice, "factoryLevel"] }[type];
-  const [priceFunction, field] = data, price = priceFunction(); if (state.coins < price) return;
-  state.coins -= price; state[field]++; toast("КУПЛЕНО ✓"); beep(650, .06); checkAchievements(); save(); render();
-}
-function prestige() {
-  const cost = prestigeCost(); if (state.coins < cost) return;
-  state.prestige++; state.scrap += 25 + state.prestige * 10; state.relics[Math.min(state.relics.length - 1, state.prestige - 1)] = true; state.coins = 0; state.clickPower = 1; state.autoPower = 0; state.critLevel = 0; state.factoryLevel = 0; state.combo = 1; state.comboUntil = 0;
-  checkAchievements(); save(); render(); toast("♻️ ЦЕХ ПЕРЕЗАПУЩЕН!"); beep(220, .15);
-}
-function maybeEvent(now) { if (now - state.lastEvent > EVENT_COOLDOWN && state.totalClicks > 20 && Math.random() < .028) { state.lastEvent = now; state.eventCount++; if (state.eventCount <= state.relics.length) state.relics[state.eventCount - 1] = true; save(); showEvent(); } }
-function showEvent() { stopGameplay(); openModal("event"); }
-function showOfflineReward(amount, seconds) { openModal("offline", { amount, seconds }); }
-function claimDaily() { if (!canClaimDaily()) { toast("Смена уже завершена — возвращайся завтра"); return; } const reward = Math.max(150, incomePerSecond() * 120 + clickValue() * 25); state.lastDaily = Date.now(); award(reward); save(); render(); toast(`🎁 СМЕНА: +${fmt(reward)}`); beep(740, .12); }
-function claimQuest() {
-  const quest = currentQuest();
-  if (state.questClaimedDay === dayKey()) { toast("Новое сменное задание появится завтра"); return; }
-  if (quest.current() < quest.target) { toast(`Ещё ${fmt(quest.target - quest.current())} до завершения`); return; }
-  state.questClaimedDay = dayKey(); state.scrap += quest.reward; save(); render(); toast(`📋 ЗАДАНИЕ: +${quest.reward} деталей`); beep(760, .12);
-}
-function buyResearch(index) {
-  const cost = researchCost(index);
-  if (state.scrap < cost) { toast(`Нужно ещё ${cost - state.scrap} деталей`); return; }
-  state.scrap -= cost; state.research[index]++; save(); render(); openModal("research"); beep(830, .08);
-}
-function showRewarded() {
-  if (!ysdk?.adv?.showRewardedVideo) { toast("Реклама будет доступна в Яндекс Играх"); return; }
-  $("rewardedBtn").disabled = true; stopGameplay();
-  ysdk.adv.showRewardedVideo({ callbacks: { onRewarded: () => { state.boostUntil = Date.now() + 60000; save(); render(); toast("🔥 БУСТ ×3 НА 60 СЕКУНД!"); }, onClose: () => { $("rewardedBtn").disabled = false; startGameplay(); render(); }, onError: error => { console.warn(error); $("rewardedBtn").disabled = false; startGameplay(); } } });
-}
+function toast(text) { const el = $("toast"); el.textContent = text; el.classList.add("show"); clearTimeout(toast.timer); toast.timer = setTimeout(() => el.classList.remove("show"), 1900); }
+function floatText(text, x, y, critical) { const el = document.createElement("div"); el.className = `float${critical ? " critical" : ""}`; el.textContent = text; el.style.left = `${x}px`; el.style.top = `${y}px`; document.body.appendChild(el); setTimeout(() => el.remove(), 750); }
+function beep(frequency, duration) { if (!state.sound) return; try { audioContext ||= new (window.AudioContext || window.webkitAudioContext)(); const osc = audioContext.createOscillator(); const gain = audioContext.createGain(); osc.frequency.value = frequency; gain.gain.value = .02; osc.connect(gain); gain.connect(audioContext.destination); osc.start(); gain.gain.exponentialRampToValueAtTime(.0001, audioContext.currentTime + duration); osc.stop(audioContext.currentTime + duration); } catch (_) {} }
+function checkAchievements() { ACHIEVEMENTS.forEach((achievement, index) => { if (!state.achievements.includes(index) && achievement[3]()) { state.achievements.push(index); toast(`🏆 ${achievement[1]}`); } }); }
 
 function openModal(kind, data = {}) {
   stopGameplay(); $("modal").classList.remove("hidden");
-  if (kind === "collection") $("modalContent").innerHTML = `<h2 class="modal-title">🧠 КОЛЛЕКЦИЯ МУТАЦИЙ</h2><p class="modal-lead">Открытия сохраняются между перезапусками фабрики.</p><div class="grid">${EVOLUTIONS.map((evo, i) => `<div class="card ${state.unlocked[i] ? "" : "locked"}"><div class="emoji">${state.unlocked[i] ? evo.emoji : "🔒"}</div><b>${state.unlocked[i] ? evo.name : "???"}</b><small>${state.unlocked[i] ? evo.sub : `Нужно заработать ${fmt(evo.at)} за всё время`}</small></div>`).join("")}</div>`;
-  else if (kind === "achievements") $("modalContent").innerHTML = `<h2 class="modal-title">🏆 ДОСТИЖЕНИЯ</h2>${ACHIEVEMENTS.map((a, i) => { const done = state.achievements.includes(i); return `<div class="achievement ${done ? "done" : ""}"><div class="emoji">${a[0]}</div><div><b>${a[1]}</b><small>${a[2]}</small></div><div class="check">${done ? "✓" : "🔒"}</div></div>`; }).join("")}`;
-  else if (kind === "event") { const reward = Math.max(333, clickValue() * 67); $("modalContent").innerHTML = `<div class="event-icon">⚠️</div><h2 class="modal-title">СБОЙ 67</h2><p class="modal-lead">Конвейер выдал нестабильную капсулу. Забрать <b>${fmt(reward)}</b> энергии?</p><button class="event-claim" id="eventClaim">ЗАБРАТЬ ×67</button><small class="event-note">Редкое событие. Никакой рекламы и подвоха.</small>`; $("eventClaim").addEventListener("click", () => { award(reward); save(); render(); closeModal(); toast(`⚠️ СБОЙ: +${fmt(reward)}`); beep(980, .12); }); }
-  else if (kind === "offline") { $("modalContent").innerHTML = `<div class="event-icon">🌙</div><h2 class="modal-title">ФАБРИКА РАБОТАЛА</h2><p class="modal-lead">За ${pluralSeconds(data.seconds)} офлайн-конвейер собрал <b>${fmt(data.amount)}</b> энергии.</p><button class="event-claim" id="offlineClaim">ЗАБРАТЬ</button>`; $("offlineClaim").addEventListener("click", closeModal); }
-  else if (kind === "quest") { const quest = currentQuest(), claimed = state.questClaimedDay === dayKey(), complete = quest.current() >= quest.target; $("modalContent").innerHTML = `<div class="event-icon">📋</div><h2 class="modal-title">СМЕННОЕ ЗАДАНИЕ</h2><p class="modal-lead"><b>${quest.title}</b><br>${quest.detail}</p><div class="quest-meter"><span style="width:${Math.min(100, quest.current() / quest.target * 100)}%"></span></div><p class="modal-lead">${fmt(Math.min(quest.current(), quest.target))} / ${fmt(quest.target)} · награда: <b>⚙ ${quest.reward}</b></p><button class="event-claim" id="questClaim" ${complete && !claimed ? "" : "disabled"}>${claimed ? "ВЫПОЛНЕНО" : complete ? "ЗАБРАТЬ ДЕТАЛИ" : "ПРОДОЛЖИТЬ РАБОТУ"}</button>`; $("questClaim").addEventListener("click", () => { if (complete && !claimed) { claimQuest(); closeModal(); } else closeModal(); }); }
-  else if (kind === "research") { const rows = [["⚡", "Импульсная катушка", "+6% ко всему доходу"], ["🧲", "Магнитный привод", "+4% ко всему доходу"], ["🧠", "Нейро-схема", "+3% ко всему доходу"]]; $("modalContent").innerHTML = `<div class="event-icon">🧪</div><h2 class="modal-title">ЛАБОРАТОРИЯ</h2><p class="modal-lead">Постоянные технологии сохраняются после престижа. Детали: <b>⚙ ${fmt(state.scrap)}</b></p>${rows.map((row, index) => `<button class="research-row" data-research="${index}"><span>${row[0]}</span><span><b>${row[1]} · LVL ${state.research[index]}</b><small>${row[2]}</small></span><em>⚙ ${researchCost(index)}</em></button>`).join("")}`; document.querySelectorAll("[data-research]").forEach(button => button.addEventListener("click", () => buyResearch(Number(button.dataset.research)))); }
-  else if (kind === "relic") { $("modalContent").innerHTML = `<div class="event-icon"><img src="assets/ui/relic-core.svg" alt=""></div><h2 class="modal-title">АРХИВ АРТЕФАКТОВ</h2><p class="modal-lead">Каждый найденный артефакт даёт <b>+2.5%</b> ко всему производству. Их можно открыть при редких сбоях и престижах.</p><div class="grid">${state.relics.map((owned, index) => `<div class="card ${owned ? "" : "locked"}"><div class="emoji">${owned ? ["🧿", "🧪", "📼", "👁️", "💿", "👑"][index] : "🔒"}</div><b>${owned ? ["Ядро 67", "Колба хаоса", "Кассета цеха", "Наблюдатель", "Диск GIGA", "Корона сбоя"][index] : "Неизвестный артефакт"}</b><small>${owned ? "+2.5% к производству" : "Найди в активности или после престижа"}</small></div>`).join("")}</div>`; }
-  else $("modalContent").innerHTML = `<h2 class="modal-title">КАК ИГРАТЬ</h2><div class="help"><p><b>1. Производи 67.</b> Быстрые клики повышают комбо до ×10.</p><p><b>2. Вкладывай энергию.</b> Сила клика, конвейер и фабрика ускоряют рост. Цены специально растут: не нужно покупать всё сразу.</p><p><b>3. Лови мутации.</b> Коллекция открывается по суммарно заработанной энергии и не сбрасывается при престиже.</p><p><b>4. Перезапускай цех.</b> На 2M можно начать новый цикл с постоянным бонусом.</p><p><b>5. Забирай добровольный буст.</b> Видео-реклама появится только в версии внутри Яндекс Игр.</p></div>`;
+  if (kind === "quest") { const q = quest(); const progress = clamp(q.current() / q.target * 100, 0, 100); $("modalContent").innerHTML = `<div class="modal-hero">📋</div><h2>${q.name}</h2><p>${q.text}. Награда: <b>+${fmt(q.reward * 100)} коинов</b> и артефакт.</p><div class="meter"><i style="width:${progress}%"></i></div><p>${fmt(Math.min(q.current(), q.target))} / ${fmt(q.target)}</p><button class="primary" id="modalAction" ${q.current() >= q.target && !state.dailyClaimed ? "" : "disabled"}>${state.dailyClaimed ? "ВЫПОЛНЕНО" : q.current() >= q.target ? "ЗАБРАТЬ НАГРАДУ" : "В РАБОТУ"}</button>`; $("modalAction").addEventListener("click", () => { if (q.current() >= q.target && !state.dailyClaimed) { claimQuest(); closeModal(); } }); }
+  else if (kind === "lab") { const techs = [["⚡", "Импульсная катушка", "+7% к производству"], ["🧲", "Сейфовый магнит", "+4% к производству"], ["🧠", "Мем-нейросеть", "+2.5% к производству"]]; $("modalContent").innerHTML = `<div class="modal-hero">🧪</div><h2>Лаборатория</h2><p>Технологии переживают престиж. Оплата — коинами.</p>${techs.map((tech, index) => `<button class="tech" data-tech="${index}"><span>${tech[0]}</span><span><b>${tech[1]} · LVL ${state.research[index]}</b><small>${tech[2]}</small></span><em>${fmt(researchCost(index) * 500)}</em></button>`).join("")}`; document.querySelectorAll("[data-tech]").forEach(button => button.addEventListener("click", () => buyResearch(Number(button.dataset.tech)))); }
+  else if (kind === "collection") { const names = ["Ядро 67", "Билет в кринж", "Кассета бота", "Глаз фабрики", "Диск GIGA", "Корона сбоя"]; $("modalContent").innerHTML = `<div class="modal-hero"><img src="assets/ui/golden-meme.svg" alt=""></div><h2>Архив артефактов</h2><p>Каждый артефакт даёт <b>+3% к производству</b>.</p><div class="cards">${state.relics.map((owned, index) => `<div class="card ${owned ? "" : "locked"}"><b>${owned ? ["🧿", "🎟️", "📼", "👁️", "💿", "👑"][index] : "🔒"}</b><strong>${owned ? names[index] : "???"}</strong><small>${owned ? "+3% к производству" : "Вылазка, контракт или престиж"}</small></div>`).join("")}</div>`; }
+  else if (kind === "achievements") $("modalContent").innerHTML = `<div class="modal-hero">🏆</div><h2>Достижения</h2>${ACHIEVEMENTS.map((a, i) => `<div class="achievement ${state.achievements.includes(i) ? "done" : ""}"><span>${a[0]}</span><div><b>${a[1]}</b><small>${a[2]}</small></div><em>${state.achievements.includes(i) ? "✓" : "🔒"}</em></div>`).join("")}`;
+  else if (kind === "offline") { $("modalContent").innerHTML = `<div class="modal-hero">🌙</div><h2>Сейф работал без тебя</h2><p>За ${Math.floor(data.seconds)} сек производство принесло <b>${fmt(data.gain)}</b> в сейф. Не забудь забрать накопления.</p><button class="primary" id="modalAction">КРУТО</button>`; $("modalAction").addEventListener("click", closeModal); }
+  else $("modalContent").innerHTML = `<div class="modal-hero">💡</div><h2>Как играть</h2><ol><li>Жми мемомёт: энергия попадает в сейф.</li><li>Забирай полные партии из сейфа в кошелёк.</li><li>Покупай генераторы, чтобы сейф заполнялся сам.</li><li>Возвращайся за сменой, контрактом и вылазкой.</li><li>Копи до перезапуска — он даёт постоянный бонус.</li></ol><button class="primary" id="modalAction">ПОНЯТНО</button>`; $("modalAction").addEventListener("click", closeModal);
 }
 function closeModal() { $("modal").classList.add("hidden"); startGameplay(); }
 
-$("clicker").addEventListener("click", click); $("powerUpgrade").addEventListener("click", () => buy("power")); $("autoUpgrade").addEventListener("click", () => buy("auto")); $("critUpgrade").addEventListener("click", () => buy("crit")); $("factoryUpgrade").addEventListener("click", () => buy("factory")); $("prestigeBtn").addEventListener("click", prestige); $("rewardedBtn").addEventListener("click", showRewarded);
-$("collectionBtn").addEventListener("click", () => openModal("collection")); $("achievementsBtn").addEventListener("click", () => openModal("achievements")); $("dailyBtn").addEventListener("click", claimDaily); $("helpBtn").addEventListener("click", () => openModal("help")); $("modalClose").addEventListener("click", closeModal); $("modal").addEventListener("click", event => { if (event.target.id === "modal") closeModal(); });
-$("questBtn").addEventListener("click", () => openModal("quest")); $("researchBtn").addEventListener("click", () => openModal("research")); $("relicBtn").addEventListener("click", () => openModal("relic"));
-$("soundBtn").addEventListener("click", () => { state.sound = !state.sound; $("soundBtn").textContent = state.sound ? "🔊 Звук" : "🔇 Звук"; save(); });
-$("resetBtn").addEventListener("click", () => { if (confirm("Сбросить весь прогресс? Это нельзя отменить.")) { localStorage.removeItem(SAVE_KEY); location.reload(); } });
-document.addEventListener("visibilitychange", () => { if (document.hidden) { save(); stopGameplay(); } else { startGameplay(); } });
+$("clicker").addEventListener("click", click); $("collectBtn").addEventListener("click", collectVault); $("dailyBtn").addEventListener("click", claimDaily); $("questBtn").addEventListener("click", () => openModal("quest")); $("expeditionBtn").addEventListener("click", startExpedition); $("collectionBtn").addEventListener("click", () => openModal("collection")); $("powerUpgrade").addEventListener("click", () => buyUpgrade("power")); $("safeUpgrade").addEventListener("click", () => buyUpgrade("safe")); $("critUpgrade").addEventListener("click", () => buyUpgrade("crit")); $("labBtn").addEventListener("click", () => openModal("lab")); $("prestigeBtn").addEventListener("click", prestige); $("achievementsBtn").addEventListener("click", () => openModal("achievements")); $("helpBtn").addEventListener("click", () => openModal("help")); $("goldenBtn").addEventListener("click", catchGolden); $("modalClose").addEventListener("click", closeModal); $("modal").addEventListener("click", event => { if (event.target.id === "modal") closeModal(); });
+$("soundBtn").addEventListener("click", () => { state.sound = !state.sound; $("soundBtn").textContent = state.sound ? "🔊 Звук" : "🔇 Звук"; save(); }); $("resetBtn").addEventListener("click", () => { if (confirm("Сбросить весь прогресс?")) { localStorage.removeItem(SAVE_KEY); location.reload(); } });
+document.addEventListener("visibilitychange", () => { if (document.hidden) { save(); stopGameplay(); } else startGameplay(); });
 
 load(); render(); initYandexSDK();
-let last = performance.now(), saveClock = 0;
-function tick(now) { const delta = Math.min(1, (now - last) / 1000); last = now; const income = incomePerSecond(); if (income > 0 && !document.hidden) award(income * delta); saveClock += delta; if (saveClock >= SAVE_INTERVAL) { saveClock = 0; save(); } render(); requestAnimationFrame(tick); }
+let lastTick = performance.now(); let saveTimer = 0;
+function tick(now) { const dt = Math.min(1, (now - lastTick) / 1000); lastTick = now; const clock = Date.now(); if (!document.hidden) addToVault(productionPerSecond() * dt); if (state.expeditionUntil && clock >= state.expeditionUntil && !state.expeditionClaimable) { state.expeditionClaimable = true; toast("🛸 ВЫЛАЗКА ВЕРНУЛАСЬ!"); } if (state.goldenUntil && clock > state.goldenUntil) $("goldenBtn").classList.add("hidden"); saveTimer += dt; if (saveTimer >= SAVE_EVERY_SECONDS) { saveTimer = 0; save(); } render(); requestAnimationFrame(tick); }
 requestAnimationFrame(tick);
