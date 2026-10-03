@@ -1,179 +1,104 @@
-const SAVE_KEY = "brainrot_vault_v5";
-const SAVE_EVERY_SECONDS = 5;
-const OFFLINE_CAP = 4 * 60 * 60;
-const COMBO_WINDOW = 1800;
-const EXPEDITION_SECONDS = 30;
+const SAVE_KEY = "garage_tycoon_v1";
+const OFFLINE_CAP = 8 * 60 * 60;
+const COMBO_WINDOW = 1600;
+const SPECIAL_WINDOW = 10000;
 
 let ysdk = null;
 let gameplayActive = false;
 let audioContext = null;
 let state = defaultState();
 
-function defaultState() {
-  return {
-    coins: 0, vault: 0, safeLevel: 0, clickPower: 1, critLevel: 0, prestige: 0,
-    generators: [0, 0, 0, 0, 0], research: [0, 0, 0], relics: [false, false, false, false, false, false],
-    totalGenerated: 0, totalClicks: 0, combo: 1, comboUntil: 0, boostUntil: 0,
-    dailyKey: "", dailyClaimed: false, dailyClicks: 0, dailyCollected: 0, dailyGenerated: 0,
-    expeditionUntil: 0, expeditionClaimable: false, expeditionCooldownUntil: 0,
-    goldenUntil: 0, goldenCooldownUntil: 0, achievements: [], sound: true, lastSave: Date.now()
-  };
-}
-
-const GENERATORS = [
-  { icon: "🧃", name: "67-ларёк", desc: "Банкует базовый мем", base: 800, growth: 1.17, rate: 1 },
-  { icon: "🤖", name: "Кринж-бот", desc: "Жмёт за тебя", base: 8000, growth: 1.19, rate: 8 },
-  { icon: "🖨️", name: "Мем-принтер", desc: "Печатает абсурд", base: 90000, growth: 1.22, rate: 65 },
-  { icon: "🧠", name: "Нейро-цех", desc: "Дистиллирует брейнрот", base: 1200000, growth: 1.25, rate: 540 },
-  { icon: "🛸", name: "Гига-сервер", desc: "Шлёт мемы из космоса", base: 20000000, growth: 1.28, rate: 4800 }
+const WORKSHOPS = [
+  { icon: "🔧", name: "Верстак", desc: "Первый мастер на смене", base: 30, growth: 1.16, rate: 1 },
+  { icon: "🛠️", name: "Подъёмник", desc: "Ремонт идёт быстрее", base: 240, growth: 1.18, rate: 6 },
+  { icon: "🚙", name: "Ремонтный бокс", desc: "Поток постоянных клиентов", base: 1800, growth: 1.21, rate: 35 },
+  { icon: "🏭", name: "Автомастерская", desc: "Команда механиков", base: 14000, growth: 1.24, rate: 210 },
+  { icon: "🏢", name: "Автоцентр", desc: "Премиальные заказы", base: 130000, growth: 1.27, rate: 1400 }
+];
+const CARS = [
+  { name: "Старая Ласточка", icon: "🚗", parts: 120, bonus: .15, rarity: "Обычная", color: "#cfd9de" },
+  { name: "Городской Зверь", icon: "🚙", parts: 500, bonus: .3, rarity: "Улучшенная", color: "#77d9a0" },
+  { name: "Турбо X", icon: "🏎️", parts: 2200, bonus: .6, rarity: "Редкая", color: "#7db8ff" },
+  { name: "Фантом GT", icon: "🏁", parts: 9000, bonus: 1, rarity: "Эпическая", color: "#d493ff" },
+  { name: "Комета", icon: "🚀", parts: 40000, bonus: 1.65, rarity: "Легендарная", color: "#ffc83d" }
 ];
 const EVOLUTIONS = [
-  { at: 0, icon: "🧃", name: "67-ЛАРЁК", sub: "Первый цех только открылся.", theme: "starter" },
-  { at: 50000, icon: "🤖", name: "УЛЬТРА-КОНВЕЙЕР", sub: "Роботы знают слово «ещё». ", theme: "ultra" },
-  { at: 2000000, icon: "🧠", name: "BRAINROT БАНК", sub: "Сейф начал думать самостоятельно.", theme: "brain" },
-  { at: 100000000, icon: "🛸", name: "GIGA-МЕМПОЛИС", sub: "Фабрика захватила ночной город.", theme: "giga" },
-  { at: 5000000000, icon: "💀", name: "АБСОЛЮТНЫЙ СЕЙФ", sub: "Числа больше не имеют смысла.", theme: "absolute" },
-  { at: 250000000000, icon: "👑", name: "СЕКРЕТНЫЙ 67", sub: "Ты дошёл до финального протокола.", theme: "secret" }
+  { at: 0, name: "СТАРЫЙ ГАРАЖ", sub: "Один подъёмник, одна мечта — стать автоимперией." },
+  { at: 10000, name: "МАСТЕРСКАЯ", sub: "Инструменты на стене, клиенты уже в очереди." },
+  { at: 100000, name: "АВТОСЕРВИС", sub: "В гараже шумят моторы и работает команда." },
+  { at: 1000000, name: "АВТОЦЕНТР", sub: "Пора открывать отделение для дорогих машин." },
+  { at: 10000000, name: "АВТОКОМПЛЕКС", sub: "Твой логотип знают во всём городе." }
 ];
 const ACHIEVEMENTS = [
-  ["👆", "Первая монета", "Сделать первый жмак", () => state.totalClicks >= 1],
-  ["🔐", "Инкассатор", "Забрать 500 из сейфа", () => state.dailyCollected >= 500 || state.totalGenerated >= 500],
-  ["🤖", "Автоматизация", "Купить Кринж-бота", () => state.generators[1] >= 1],
-  ["📋", "Контрактник", "Выполнить сменный контракт", () => state.dailyClaimed],
-  ["🛸", "Экспедитор", "Забрать первую вылазку", () => state.relics[0]],
-  ["⚡", "Перегрузка", "Получить критический жмак", () => state.critLevel > 0],
-  ["🧪", "Лаборант", "Купить исследование", () => state.research.some(Boolean)],
-  ["💰", "Первая сотня K", "Создать 100K энергии", () => state.totalGenerated >= 100000],
-  ["♻️", "Перерождение", "Перезапустить фабрику", () => state.prestige >= 1],
-  ["👑", "Мемный магнат", "Открыть GIGA-МЕМПОЛИС", () => state.totalGenerated >= 100000000]
+  ["🔨", "Первый ремонт", "Отремонтировать первую машину", () => state.totalClicks >= 1],
+  ["🏭", "Автоматизация", "Купить первый подъёмник", () => state.workshops[1] >= 1],
+  ["🚗", "Коллекционер", "Собрать первый автомобиль", () => state.cars.some(Boolean)],
+  ["⚡", "Идеальный мастер", "Сделать идеальную сборку", () => state.perfectAssemblies >= 1],
+  ["📋", "Надёжный сервис", "Закрыть заказ", () => state.ordersDone >= 1],
+  ["💰", "Первый миллион", "Заработать 1M ₽", () => state.totalEarned >= 1000000],
+  ["🏆", "Новый филиал", "Открыть первый филиал", () => state.prestige >= 1]
 ];
 
+function defaultState() { return { money: 0, parts: 0, clickPower: 1, critLevel: 0, coolLevel: 0, workshops: [0, 0, 0, 0, 0], technologies: [0, 0, 0], cars: [false, false, false, false, false], carQuality: [0, 0, 0, 0, 0], prestige: 0, totalEarned: 0, totalClicks: 0, combo: 1, comboUntil: 0, boostUntil: 0, lastSave: Date.now(), lastDaily: "", lastCrate: 0, achievements: [], sound: true, ordersDone: 0, perfectAssemblies: 0, specialUntil: 0, specialCooldown: 0 }; }
 const $ = id => document.getElementById(id);
-const fmt = number => {
-  if (!Number.isFinite(number)) return "0";
-  if (number < 1000) return Math.floor(number).toString();
-  const units = ["K", "M", "B", "T", "Qa"]; let value = number; let unit = -1;
-  while (value >= 1000 && unit < units.length - 1) { value /= 1000; unit++; }
-  return `${value.toFixed(value >= 100 ? 0 : value >= 10 ? 1 : 2)}${units[unit]}`;
-};
+const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+const fmt = n => { if (!Number.isFinite(n)) return "0"; if (n < 1000) return Math.floor(n).toString(); const u = ["K", "M", "B", "T", "Qa"]; let i = -1; while (n >= 1000 && i < u.length - 1) { n /= 1000; i++; } return `${n.toFixed(n >= 100 ? 0 : n >= 10 ? 1 : 2)}${u[i]}`; };
 const today = () => new Date().toISOString().slice(0, 10);
-const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-function generatorPrice(index) { const g = GENERATORS[index]; return Math.floor(g.base * Math.pow(g.growth, state.generators[index])); }
-function powerPrice() { return Math.floor(100 * Math.pow(1.8, state.clickPower - 1)); }
-function safePrice() { return Math.floor(400 * Math.pow(1.95, state.safeLevel)); }
-function critPrice() { return Math.floor(7500 * Math.pow(2.15, state.critLevel)); }
-function prestigeCost() { return 500000000 * Math.pow(8, state.prestige); }
-function safeCapacity() { return 500 * Math.pow(2, state.safeLevel); }
-function researchCost(index) { return 10 + state.research[index] * 10 + index * 8; }
-function relicMultiplier() { return 1 + state.relics.filter(Boolean).length * .03; }
-function baseMultiplier() { return (1 + state.prestige * .12) * (1 + state.research[0] * .07 + state.research[1] * .04 + state.research[2] * .025) * relicMultiplier(); }
-function multiplier() { return baseMultiplier() * (Date.now() < state.boostUntil ? 3 : 1); }
-function productionPerSecond() { return GENERATORS.reduce((sum, g, i) => sum + g.rate * state.generators[i], 0) * multiplier(); }
+const workshopPrice = i => Math.floor(WORKSHOPS[i].base * Math.pow(WORKSHOPS[i].growth, state.workshops[i]));
+const powerPrice = () => Math.floor(35 * Math.pow(1.65, state.clickPower - 1));
+const critPrice = () => Math.floor(750 * Math.pow(1.9, state.critLevel));
+const coolPrice = () => Math.floor(1000 * Math.pow(2, state.coolLevel));
+const techPrice = i => Math.floor((2000 + i * 1200) * Math.pow(1.75, state.technologies[i]));
+const prestigeCost = () => 1000000 * Math.pow(8, state.prestige);
+const garageLevel = () => Math.floor(Math.sqrt(state.totalEarned / 1000)) + 1;
+const nextLevelAt = () => Math.pow(garageLevel(), 2) * 1000;
+function carBonus() { return state.cars.reduce((sum, owned, i) => sum + (owned ? CARS[i].bonus * (1 + state.carQuality[i]) : 0), 0); }
+function multiplier() { return (1 + state.prestige * .25 + carBonus() + state.technologies[0] * .08 + state.technologies[1] * .05 + state.technologies[2] * .03) * (Date.now() < state.boostUntil ? 3 : 1); }
+function income() { return WORKSHOPS.reduce((sum, w, i) => sum + w.rate * state.workshops[i], 0) * multiplier(); }
 function clickValue() { return state.clickPower * multiplier(); }
-function currentEvolution() { let current = EVOLUTIONS[0]; for (const evo of EVOLUTIONS) if (state.totalGenerated >= evo.at) current = evo; return current; }
-function nextEvolution() { const current = currentEvolution(); return EVOLUTIONS[EVOLUTIONS.indexOf(current) + 1]; }
-function rankName() { const value = state.totalGenerated; if (value >= 5000000000) return "АБСОЛЮТ"; if (value >= 100000000) return "GIGA"; if (value >= 2000000) return "BRAINROT"; if (value >= 50000) return "УЛЬТРА"; if (value >= 5000) return "ЖМАКЕР"; return "НОВИЧОК"; }
+function currentEvolution() { return EVOLUTIONS.filter(e => state.totalEarned >= e.at).at(-1); }
+function nextEvolution() { const e = currentEvolution(); return EVOLUTIONS[EVOLUTIONS.indexOf(e) + 1]; }
+function order() { const tier = Math.min(3, Math.floor(state.totalEarned / 25000)); const targets = [60, 180, 550, 1600]; return { name: ["Срочная диагностика", "Замена двигателя", "VIP-заказ", "Гоночный прототип"][tier], text: ["Клиент ждёт быстрый ремонт.", "Нужны детали для полного обслуживания.", "Богатый клиент хочет машину сегодня.", "Собери детали для тестового авто."][tier], need: targets[tier], reward: targets[tier] * (22 + tier * 12), partReward: 12 + tier * 18 }; }
 
-function normalizeState() {
-  state.generators = Array.isArray(state.generators) ? [...state.generators, 0, 0, 0, 0, 0].slice(0, 5) : [0, 0, 0, 0, 0];
-  state.research = Array.isArray(state.research) ? [...state.research, 0, 0, 0].slice(0, 3) : [0, 0, 0];
-  state.relics = Array.isArray(state.relics) ? [...state.relics, false, false, false, false, false, false].slice(0, 6) : [false, false, false, false, false, false];
-  if (state.dailyKey !== today()) { state.dailyKey = today(); state.dailyClaimed = false; state.dailyClicks = 0; state.dailyCollected = 0; state.dailyGenerated = 0; }
-  state.vault = clamp(Number(state.vault) || 0, 0, safeCapacity());
-}
-function load() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(SAVE_KEY));
-    if (saved && typeof saved === "object") state = { ...state, ...saved };
-  } catch (error) { console.warn("Сохранение не прочитано", error); }
-  normalizeState();
-  const seconds = clamp((Date.now() - state.lastSave) / 1000, 0, OFFLINE_CAP);
-  addToVault(productionPerSecond() * seconds, false);
-  if (seconds >= 20 && productionPerSecond() > 0) setTimeout(() => openModal("offline", { seconds, gain: productionPerSecond() * seconds }), 300);
-}
+function normalize() { state.workshops = [...(state.workshops || []), 0, 0, 0, 0, 0].slice(0, 5); state.technologies = [...(state.technologies || []), 0, 0, 0].slice(0, 3); state.cars = [...(state.cars || []), false, false, false, false, false].slice(0, 5); state.carQuality = [...(state.carQuality || []), 0, 0, 0, 0, 0].slice(0, 5); state.achievements ||= []; }
+function load() { try { const saved = JSON.parse(localStorage.getItem(SAVE_KEY)); if (saved && typeof saved === "object") state = { ...state, ...saved }; } catch (error) { console.warn("Не удалось загрузить сохранение", error); } normalize(); const seconds = clamp((Date.now() - state.lastSave) / 1000, 0, OFFLINE_CAP); const gain = income() * seconds; if (gain > 1) { state.money += gain; state.totalEarned += gain; setTimeout(() => openModal("offline", { seconds, gain }), 300); } }
 function save() { state.lastSave = Date.now(); localStorage.setItem(SAVE_KEY, JSON.stringify(state)); }
-
 async function initYandexSDK() { try { if (!window.YaGames) return; ysdk = await window.YaGames.init(); ysdk.features?.LoadingAPI?.ready(); startGameplay(); } catch (error) { console.warn("Yandex SDK недоступен", error); } }
 function startGameplay() { if (!gameplayActive) { ysdk?.features?.GameplayAPI?.start(); gameplayActive = true; } }
 function stopGameplay() { if (gameplayActive) { ysdk?.features?.GameplayAPI?.stop(); gameplayActive = false; } }
 
-function addToVault(amount, countGenerated = true) {
-  if (amount <= 0 || state.vault >= safeCapacity()) return 0;
-  const added = Math.min(amount, safeCapacity() - state.vault); state.vault += added;
-  if (countGenerated) { state.totalGenerated += added; state.dailyGenerated += added; }
-  checkAchievements(); return added;
-}
-function collectVault() {
-  if (state.vault < .5) { toast("Сейф пока пуст — запускай мемомёт"); return; }
-  const gain = state.vault; state.coins += gain; state.dailyCollected += gain; state.vault = 0;
-  toast(`🔐 В КОШЕЛЁК: +${fmt(gain)}`); beep(620, .09); checkAchievements(); save(); render();
-}
-function click(event) {
-  if (state.vault >= safeCapacity()) { toast("🔐 СЕЙФ ПОЛОН — забери партию!"); return; }
-  const now = Date.now(); state.combo = now < state.comboUntil ? Math.min(10, state.combo + 1) : 1; state.comboUntil = now + COMBO_WINDOW;
-  const critical = Math.random() < Math.min(.4, state.critLevel * .025); const gain = clickValue() * state.combo * (critical ? 10 : 1);
-  const added = addToVault(gain); state.totalClicks++; state.dailyClicks++;
-  const rect = $("clicker").getBoundingClientRect(); floatText(`${critical ? "⚡ GIGA +" : "+"}${fmt(added)}`, rect.left + rect.width / 2, rect.top + rect.height / 2, critical);
-  beep(critical ? 980 : 360 + state.combo * 24, critical ? .08 : .025); maybeGolden(now); save(); render();
-}
-function buyGenerator(index) { const price = generatorPrice(index); if (state.coins < price) return; state.coins -= price; state.generators[index]++; toast(`${GENERATORS[index].icon} ЦЕХ УЛУЧШЕН`); beep(720, .06); save(); render(); }
-function buyUpgrade(type) {
-  const map = { power: [powerPrice, "clickPower"], safe: [safePrice, "safeLevel"], crit: [critPrice, "critLevel"] }; const [getPrice, field] = map[type]; const price = getPrice();
-  if (state.coins < price) return; state.coins -= price; state[field]++; toast("УЛУЧШЕНИЕ УСТАНОВЛЕНО ✓"); beep(760, .06); save(); render();
-}
-function quest() {
-  const options = [
-    { name: "Ритм 67", text: "Сделай 67 жмаков", current: () => state.dailyClicks, target: 67, reward: 12 },
-    { name: "Инкассация", text: "Забери 10K из сейфа", current: () => state.dailyCollected, target: 10000, reward: 18 },
-    { name: "Мемный заказ", text: "Создай 50K энергии", current: () => state.dailyGenerated, target: 50000, reward: 24 }
-  ]; return options[Math.floor(Date.now() / 86400000) % options.length];
-}
-function claimQuest() { const q = quest(); if (state.dailyClaimed) return toast("Контракт уже закрыт сегодня"); if (q.current() < q.target) return toast("Контракт ещё не выполнен"); state.dailyClaimed = true; state.research[0] += 0; state.coins += q.reward * 100; state.relics[0] = true; toast(`📋 КОНТРАКТ: +${q.reward * 100} коинов`); save(); render(); }
-function claimDaily() { if (state.lastDaily === today()) return toast("Смена уже получена — завтра будет новая"); const gain = Math.max(350, clickValue() * 35 + productionPerSecond() * 90); state.lastDaily = today(); state.coins += gain; toast(`🎁 СМЕНА: +${fmt(gain)}`); beep(830, .12); save(); render(); }
-function startExpedition() { if (state.expeditionClaimable) return claimExpedition(); if (Date.now() < state.expeditionCooldownUntil) return toast("Вылазка готовится — попробуй чуть позже"); state.expeditionUntil = Date.now() + EXPEDITION_SECONDS * 1000; state.expeditionCooldownUntil = state.expeditionUntil + 90 * 1000; toast("🛸 ВЫЛАЗКА ОТПРАВЛЕНА!"); save(); render(); }
-function claimExpedition() { if (!state.expeditionClaimable) return; const gain = Math.max(1500, productionPerSecond() * 180 + clickValue() * 100); state.expeditionClaimable = false; state.coins += gain; const relicIndex = state.relics.findIndex(value => !value); if (relicIndex >= 0) state.relics[relicIndex] = true; toast(`🛸 ДОБЫЧА: +${fmt(gain)}`); beep(900, .12); save(); render(); }
-function buyResearch(index) { const cost = researchCost(index); if (state.coins < cost * 500) return toast(`Нужно ${fmt(cost * 500)} коинов`); state.coins -= cost * 500; state.research[index]++; toast("🧪 ТЕХНОЛОГИЯ УСИЛЕНА"); save(); render(); openModal("lab"); }
-function prestige() { const cost = prestigeCost(); if (state.totalGenerated < cost) return; state.prestige++; const relic = state.relics.findIndex(value => !value); if (relic >= 0) state.relics[relic] = true; const meta = { prestige: state.prestige, research: state.research, relics: state.relics, totalGenerated: state.totalGenerated, achievements: state.achievements, sound: state.sound }; state = { ...defaultState(), ...meta, dailyKey: today() }; toast("♻️ ФАБРИКА ПЕРЕЗАПУЩЕНА"); save(); render(); }
-function maybeGolden(now) { if (now < state.goldenCooldownUntil || $("goldenBtn").classList.contains("hidden") || Math.random() > .018) return; state.goldenUntil = now + 6500; state.goldenCooldownUntil = now + 70000; $("goldenBtn").classList.remove("hidden"); }
-function catchGolden() { if ($("goldenBtn").classList.contains("hidden")) return; $("goldenBtn").classList.add("hidden"); const gain = Math.max(300, clickValue() * 67); addToVault(gain); toast(`✨ ЗОЛОТОЙ МЕМ: +${fmt(gain)} в сейф`); beep(1040, .13); save(); render(); }
-function showRewarded() { if (!ysdk?.adv?.showRewardedVideo) return toast("Буст-видео будет доступно в Яндекс Играх"); stopGameplay(); ysdk.adv.showRewardedVideo({ callbacks: { onRewarded: () => { state.boostUntil = Date.now() + 60000; toast("🔥 БУСТ ×3 НА 60 СЕКУНД"); }, onClose: startGameplay, onError: startGameplay } }); }
+function addMoney(amount) { if (amount <= 0) return; state.money += amount; state.totalEarned += amount; checkAchievements(); }
+function click(event) { const now = Date.now(); state.combo = now < state.comboUntil ? Math.min(10, state.combo + 1) : 1; state.comboUntil = now + COMBO_WINDOW; const crit = Math.random() < Math.min(.35, .04 + state.critLevel * .025); const gain = clickValue() * state.combo * (crit ? 8 : 1); addMoney(gain); state.parts += Math.max(1, Math.floor(state.combo / 3)); state.totalClicks++; const rect = $("clicker").getBoundingClientRect(); floatText(`${crit ? "КРИТ! +" : "+"}${fmt(gain)} ₽`, event?.clientX || rect.left + rect.width / 2, event?.clientY || rect.top + rect.height / 2, crit); beep(crit ? 920 : 380 + state.combo * 20, crit ? .1 : .03); maybeSpecial(now); save(); render(); }
+function buyWorkshop(i) { const price = workshopPrice(i); if (state.money < price) return toast(`Нужно ${fmt(price)} ₽`); state.money -= price; state.workshops[i]++; toast(`${WORKSHOPS[i].icon} ${WORKSHOPS[i].name}: уровень повышен`); beep(720, .06); save(); render(); }
+function buyUpgrade(kind) { const config = { power: [powerPrice, "clickPower"], crit: [critPrice, "critLevel"], cool: [coolPrice, "coolLevel"] }; const [priceFn, key] = config[kind]; const price = priceFn(); if (state.money < price) return toast(`Нужно ${fmt(price)} ₽`); state.money -= price; state[key]++; toast("🔧 УЛУЧШЕНИЕ УСТАНОВЛЕНО"); beep(760, .07); save(); render(); }
+function claimDaily() { if (state.lastDaily === today()) return toast("Смена уже получена — возвращайся завтра"); const money = Math.max(150, clickValue() * 50 + income() * 90); const parts = 20 + state.prestige * 10; addMoney(money); state.parts += parts; state.lastDaily = today(); toast(`🎁 СМЕНА: +${fmt(money)} ₽ и ${parts} 🔩`); save(); render(); }
+function claimCrate() { if (Date.now() - state.lastCrate < 3 * 60 * 60 * 1000) return toast("Поставка в пути — возвращайся позже"); const parts = Math.max(35, Math.floor(income() * 12 + 35)); state.parts += parts; state.lastCrate = Date.now(); toast(`📦 ДОСТАВКА: +${parts} запчастей`); beep(820, .08); save(); render(); }
+function showRewarded(reward) { if (!ysdk?.adv?.showRewardedVideo) { toast("Видео-награды доступны в Яндекс Играх"); return; } stopGameplay(); ysdk.adv.showRewardedVideo({ callbacks: { onRewarded: () => { if (reward === "turbo") { state.boostUntil = Date.now() + 60000; toast("⚡ ТУРБО ×3 НА 60 СЕКУНД"); } if (reward === "offline") { const gain = income() * 180; addMoney(gain); toast(`🌙 УДВОЕНО: +${fmt(gain)} ₽`); } save(); render(); }, onClose: startGameplay, onError: startGameplay } }); }
+function maybeSpecial(now) { if (now < state.specialCooldown || Math.random() > .014 || !$("specialBtn").classList.contains("hidden")) return; state.specialUntil = now + SPECIAL_WINDOW; state.specialCooldown = now + 85000; $("specialBtn").classList.remove("hidden"); }
+function catchSpecial() { if ($("specialBtn").classList.contains("hidden")) return; $("specialBtn").classList.add("hidden"); const gain = Math.max(500, income() * 25 + clickValue() * 80); addMoney(gain); state.parts += 25; toast(`🏎️ ТЕСТОВЫЙ АВТО: +${fmt(gain)} ₽, +25 🔩`); beep(1050, .12); save(); render(); }
+function completeOrder() { const o = order(); if (state.parts < o.need) return toast(`Нужно ещё ${o.need - state.parts} 🔩`); state.parts -= o.need; addMoney(o.reward); state.parts += o.partReward; state.ordersDone++; toast(`📋 ЗАКАЗ ГОТОВ: +${fmt(o.reward)} ₽`); beep(900, .1); save(); render(); closeModal(); }
+function prestige() { if (state.totalEarned < prestigeCost()) return; const meta = { prestige: state.prestige + 1, technologies: state.technologies, cars: state.cars, carQuality: state.carQuality, achievements: state.achievements, sound: state.sound, perfectAssemblies: state.perfectAssemblies, ordersDone: state.ordersDone, totalEarned: state.totalEarned }; state = { ...defaultState(), ...meta }; toast("🏆 НОВЫЙ ФИЛИАЛ ОТКРЫТ!"); save(); render(); }
+function checkAchievements() { ACHIEVEMENTS.forEach((a, i) => { if (!state.achievements.includes(i) && a[3]()) { state.achievements.push(i); toast(`🏆 ${a[1]}`); } }); }
 
-function renderGenerators() { $("generators").innerHTML = GENERATORS.map((g, index) => { const price = generatorPrice(index); return `<button class="generator" data-generator="${index}" ${state.coins < price ? "disabled" : ""}><span class="generator-icon">${g.icon}</span><span><b>${g.name} <em>×${state.generators[index]}</em></b><small>${g.desc} · +${fmt(g.rate * multiplier())}/сек</small></span><strong>${fmt(price)}</strong></button>`; }).join(""); document.querySelectorAll("[data-generator]").forEach(button => button.addEventListener("click", () => buyGenerator(Number(button.dataset.generator)))); }
-function render() {
-  normalizeState(); const capacity = safeCapacity(); const evo = currentEvolution(); const next = nextEvolution(); const full = state.vault >= capacity - .01;
-  $("game").dataset.theme = evo.theme; $("coins").textContent = fmt(state.coins); $("income").textContent = `${fmt(productionPerSecond())}/сек`; $("multiplierLabel").textContent = `множитель ×${multiplier().toFixed(2)}`;
-  $("rank").textContent = rankName(); $("prestige").textContent = state.prestige;
-  $("vaultStored").textContent = fmt(state.vault); $("vaultCapacity").textContent = fmt(capacity); $("vaultPercent").textContent = `${Math.floor(state.vault / capacity * 100)}%`; $("vaultBar").style.width = `${state.vault / capacity * 100}%`; $("vaultStatus").classList.toggle("full", full); $("vaultHint").textContent = full ? "СЕЙФ ПОЛОН — ЗАБЕРИ!" : `Свободно ${fmt(capacity - state.vault)}`;
-  $("combo").textContent = `×${state.combo}`; $("comboBar").style.width = `${clamp((state.comboUntil - Date.now()) / COMBO_WINDOW * 100, 0, 100)}%`;
-  $("powerPrice").textContent = fmt(powerPrice()); $("safePrice").textContent = fmt(safePrice()); $("critPrice").textContent = fmt(critPrice()); $("powerInfo").textContent = `+1 · сейчас ${fmt(clickValue())}`; $("safeInfo").textContent = `вместимость ${fmt(capacity)}`; $("critInfo").textContent = `${(state.critLevel * 2.5).toFixed(1)}% шанс ×10`; $("labInfo").textContent = `${state.research.reduce((a, b) => a + b, 0)} технологий`;
-  $("powerUpgrade").disabled = state.coins < powerPrice(); $("safeUpgrade").disabled = state.coins < safePrice(); $("critUpgrade").disabled = state.coins < critPrice();
-  $("dailyStatus").textContent = state.lastDaily === today() ? "ЗАВТРА" : "ГОТОВО"; const q = quest(); $("questStatus").textContent = state.dailyClaimed ? "ВЫПОЛНЕНО" : `${fmt(Math.min(q.current(), q.target))} / ${fmt(q.target)}`;
-  if (state.expeditionClaimable) $("expeditionStatus").textContent = "ЗАБРАТЬ"; else if (Date.now() < state.expeditionUntil) $("expeditionStatus").textContent = `${Math.ceil((state.expeditionUntil - Date.now()) / 1000)}с`; else if (Date.now() < state.expeditionCooldownUntil) $("expeditionStatus").textContent = `${Math.ceil((state.expeditionCooldownUntil - Date.now()) / 1000)}с`; else $("expeditionStatus").textContent = "ГОТОВО";
-  $("collectionCount").textContent = `${state.relics.filter(Boolean).length} / 6`; $("evolutionIcon").textContent = evo.icon; $("evolution").textContent = evo.name; $("evolutionSub").textContent = next ? `${evo.sub} Следующая цель: ${fmt(next.at)}.` : evo.sub; $("nextUnlock").textContent = next ? fmt(next.at) : "MAX"; const span = next ? next.at - evo.at : 1; $("evolutionBar").style.width = `${next ? clamp((state.totalGenerated - evo.at) / span * 100, 0, 100) : 100}%`;
-  $("prestigeCost").textContent = fmt(prestigeCost()); $("prestigeBonus").textContent = `+${state.prestige * 12}%`; $("prestigeBtn").disabled = state.totalGenerated < prestigeCost(); renderGenerators(); checkAchievements();
-}
+function renderWorkshops() { $("workshops").innerHTML = WORKSHOPS.map((w, i) => { const price = workshopPrice(i); return `<button class="workshop" data-workshop="${i}" ${state.money < price ? "disabled" : ""}><span class="icon">${w.icon}</span><div><b>${w.name} <em>LVL ${state.workshops[i]}</em></b><small>${w.desc} · +${fmt(w.rate * multiplier())} ₽/сек</small></div><em>${fmt(price)} ₽</em></button>`; }).join(""); document.querySelectorAll("[data-workshop]").forEach(b => b.addEventListener("click", () => buyWorkshop(Number(b.dataset.workshop)))); }
+function render() { normalize(); const level = garageLevel(); const levelBefore = Math.pow(level - 1, 2) * 1000; const next = nextLevelAt(); const evo = currentEvolution(); const evoNext = nextEvolution(); $("money").textContent = `${fmt(state.money)} ₽`; $("income").textContent = `${fmt(income())} ₽/сек`; $("parts").textContent = `${fmt(state.parts)} 🔩`; $("garageLevel").textContent = `LVL ${level}`; $("levelProgress").textContent = `${fmt(state.totalEarned - levelBefore)} / ${fmt(next - levelBefore)}`; $("levelBar").style.width = `${clamp((state.totalEarned - levelBefore) / (next - levelBefore) * 100, 0, 100)}%`; $("garageName").textContent = evo.name; $("boostLabel").textContent = Date.now() < state.boostUntil ? "ТУРБО ×3" : "ТЕМП: ГОТОВ"; const hot = clamp((state.combo - 1) / 9 * 100, 0, 100); $("combo").textContent = `×${state.combo}`; $("comboBar").style.width = `${hot}%`; $("heatHint").textContent = state.combo >= 9 ? "ОСТАНОВИСЬ В ЖЁЛТОЙ ЗОНЕ — ИДЕАЛЬНОЕ ОХЛАЖДЕНИЕ!" : "Разгоняй темп, но не перегрей инструмент"; $("coolZone").style.left = `${Math.max(45, 66 - state.coolLevel * 4)}%`; $("dailyStatus").textContent = state.lastDaily === today() ? "ЗАВТРА" : "ГОТОВО"; $("crateStatus").textContent = Date.now() - state.lastCrate >= 3 * 3600000 ? "ГОТОВО" : "В ПУТИ"; const o = order(); $("orderStatus").textContent = `${fmt(Math.min(state.parts, o.need))}/${fmt(o.need)} 🔩`; $("powerPrice").textContent = `${fmt(powerPrice())} ₽`; $("critPrice").textContent = `${fmt(critPrice())} ₽`; $("coolPrice").textContent = `${fmt(coolPrice())} ₽`; $("powerInfo").textContent = `+1 · сейчас ${fmt(clickValue())} ₽`; $("critInfo").textContent = `${(4 + state.critLevel * 2.5).toFixed(1)}% шанс ×8`; $("coolInfo").textContent = `Зона +${state.coolLevel * 4}%`; $("techInfo").textContent = `${state.technologies.reduce((a,b) => a+b,0)} технологий`; $("powerUpgrade").disabled = state.money < powerPrice(); $("critUpgrade").disabled = state.money < critPrice(); $("coolUpgrade").disabled = state.money < coolPrice(); $("evolution").textContent = evo.name; $("evolutionSub").textContent = evoNext ? `${evo.sub} Следующая цель: ${fmt(evoNext.at)} ₽.` : "Ты построил настоящую автоимперию."; $("nextUnlock").textContent = evoNext ? `${fmt(evoNext.at)} ₽` : "MAX"; $("evolutionBar").style.width = `${evoNext ? clamp((state.totalEarned - evo.at) / (evoNext.at - evo.at) * 100, 0, 100) : 100}%`; $("prestigeCost").textContent = `${fmt(prestigeCost())} ₽`; $("prestigeBonus").textContent = `+${state.prestige * 25}%`; $("prestigeBtn").disabled = state.totalEarned < prestigeCost(); $("soundBtn").textContent = state.sound ? "🔊" : "🔇"; renderWorkshops(); }
 
 function toast(text) { const el = $("toast"); el.textContent = text; el.classList.add("show"); clearTimeout(toast.timer); toast.timer = setTimeout(() => el.classList.remove("show"), 1900); }
-function floatText(text, x, y, critical) { const el = document.createElement("div"); el.className = `float${critical ? " critical" : ""}`; el.textContent = text; el.style.left = `${x}px`; el.style.top = `${y}px`; document.body.appendChild(el); setTimeout(() => el.remove(), 750); }
-function beep(frequency, duration) { if (!state.sound) return; try { audioContext ||= new (window.AudioContext || window.webkitAudioContext)(); const osc = audioContext.createOscillator(); const gain = audioContext.createGain(); osc.frequency.value = frequency; gain.gain.value = .02; osc.connect(gain); gain.connect(audioContext.destination); osc.start(); gain.gain.exponentialRampToValueAtTime(.0001, audioContext.currentTime + duration); osc.stop(audioContext.currentTime + duration); } catch (_) {} }
-function checkAchievements() { ACHIEVEMENTS.forEach((achievement, index) => { if (!state.achievements.includes(index) && achievement[3]()) { state.achievements.push(index); toast(`🏆 ${achievement[1]}`); } }); }
+function floatText(text, x, y, critical) { const el = document.createElement("div"); el.className = `float${critical ? " critical" : ""}`; el.textContent = text; el.style.left = `${x}px`; el.style.top = `${y}px`; document.body.append(el); setTimeout(() => el.remove(), 750); }
+function beep(frequency, duration) { if (!state.sound) return; try { audioContext ||= new (window.AudioContext || window.webkitAudioContext)(); const osc = audioContext.createOscillator(); const gain = audioContext.createGain(); osc.frequency.value = frequency; gain.gain.value = .025; osc.connect(gain); gain.connect(audioContext.destination); osc.start(); gain.gain.exponentialRampToValueAtTime(.0001, audioContext.currentTime + duration); osc.stop(audioContext.currentTime + duration); } catch (_) {} }
 
-function openModal(kind, data = {}) {
-  stopGameplay(); $("modal").classList.remove("hidden");
-  if (kind === "quest") { const q = quest(); const progress = clamp(q.current() / q.target * 100, 0, 100); $("modalContent").innerHTML = `<div class="modal-hero">📋</div><h2>${q.name}</h2><p>${q.text}. Награда: <b>+${fmt(q.reward * 100)} коинов</b> и артефакт.</p><div class="meter"><i style="width:${progress}%"></i></div><p>${fmt(Math.min(q.current(), q.target))} / ${fmt(q.target)}</p><button class="primary" id="modalAction" ${q.current() >= q.target && !state.dailyClaimed ? "" : "disabled"}>${state.dailyClaimed ? "ВЫПОЛНЕНО" : q.current() >= q.target ? "ЗАБРАТЬ НАГРАДУ" : "В РАБОТУ"}</button>`; $("modalAction").addEventListener("click", () => { if (q.current() >= q.target && !state.dailyClaimed) { claimQuest(); closeModal(); } }); }
-  else if (kind === "lab") { const techs = [["⚡", "Импульсная катушка", "+7% к производству"], ["🧲", "Сейфовый магнит", "+4% к производству"], ["🧠", "Мем-нейросеть", "+2.5% к производству"]]; $("modalContent").innerHTML = `<div class="modal-hero">🧪</div><h2>Лаборатория</h2><p>Технологии переживают престиж. Оплата — коинами.</p>${techs.map((tech, index) => `<button class="tech" data-tech="${index}"><span>${tech[0]}</span><span><b>${tech[1]} · LVL ${state.research[index]}</b><small>${tech[2]}</small></span><em>${fmt(researchCost(index) * 500)}</em></button>`).join("")}`; document.querySelectorAll("[data-tech]").forEach(button => button.addEventListener("click", () => buyResearch(Number(button.dataset.tech)))); }
-  else if (kind === "collection") { const names = ["Ядро 67", "Билет в кринж", "Кассета бота", "Глаз фабрики", "Диск GIGA", "Корона сбоя"]; $("modalContent").innerHTML = `<div class="modal-hero"><img src="assets/ui/golden-meme.svg" alt=""></div><h2>Архив артефактов</h2><p>Каждый артефакт даёт <b>+3% к производству</b>.</p><div class="cards">${state.relics.map((owned, index) => `<div class="card ${owned ? "" : "locked"}"><b>${owned ? ["🧿", "🎟️", "📼", "👁️", "💿", "👑"][index] : "🔒"}</b><strong>${owned ? names[index] : "???"}</strong><small>${owned ? "+3% к производству" : "Вылазка, контракт или престиж"}</small></div>`).join("")}</div>`; }
-  else if (kind === "achievements") $("modalContent").innerHTML = `<div class="modal-hero">🏆</div><h2>Достижения</h2>${ACHIEVEMENTS.map((a, i) => `<div class="achievement ${state.achievements.includes(i) ? "done" : ""}"><span>${a[0]}</span><div><b>${a[1]}</b><small>${a[2]}</small></div><em>${state.achievements.includes(i) ? "✓" : "🔒"}</em></div>`).join("")}`;
-  else if (kind === "offline") { $("modalContent").innerHTML = `<div class="modal-hero">🌙</div><h2>Сейф работал без тебя</h2><p>За ${Math.floor(data.seconds)} сек производство принесло <b>${fmt(data.gain)}</b> в сейф. Не забудь забрать накопления.</p><button class="primary" id="modalAction">КРУТО</button>`; $("modalAction").addEventListener("click", closeModal); }
-  else $("modalContent").innerHTML = `<div class="modal-hero">💡</div><h2>Как играть</h2><ol><li>Жми мемомёт: энергия попадает в сейф.</li><li>Забирай полные партии из сейфа в кошелёк.</li><li>Покупай генераторы, чтобы сейф заполнялся сам.</li><li>Возвращайся за сменой, контрактом и вылазкой.</li><li>Копи до перезапуска — он даёт постоянный бонус.</li></ol><button class="primary" id="modalAction">ПОНЯТНО</button>`; $("modalAction").addEventListener("click", closeModal);
-}
+function openModal(kind, data = {}) { stopGameplay(); $("modal").classList.remove("hidden"); const content = $("modalContent"); if (kind === "cars") { const list = CARS.map((car, i) => { if (state.cars[i]) return `<div class="vehicle"><span class="v-icon">${car.icon}</span><div><b>${car.name}</b><small>${car.rarity} · +${Math.round(car.bonus * (1 + state.carQuality[i]) * 100)}% к доходу</small></div><em>СОБРАНА</em></div>`; return `<button class="vehicle locked" data-car="${i}"><span class="v-icon">${car.icon}</span><div><b>${car.name}</b><small>${car.parts} 🔩 · ${car.rarity}</small></div><em>${state.parts >= car.parts ? "СОБРАТЬ" : `${state.parts}/${car.parts}`}</em></button>`; }).join(""); content.innerHTML = `<div class="modal-hero">🚗</div><h2>МОИ АВТОМОБИЛИ</h2><p>Собранные автомобили дают постоянный бонус к доходу. Сборка — шанс улучшить результат.</p>${list}`; document.querySelectorAll("[data-car]").forEach(b => b.addEventListener("click", () => startAssembly(Number(b.dataset.car)))); }
+  else if (kind === "assembly") { const car = CARS[data.index]; content.innerHTML = `<div class="modal-hero">🔧</div><h2>СБОРКА: ${car.name}</h2><p>Нажми кнопку, когда маркер окажется в жёлтой зоне. Идеальная сборка добавит <b>+50% к бонусу машины</b>.</p><div class="assembly"><div class="meter"><i style="width:100%;opacity:.28"></i><span class="needle" id="needle"></span></div><button class="primary" id="assemblyBtn">СОБРАТЬ АВТОМОБИЛЬ</button></div>`; let position = 0; const timer = setInterval(() => { position = (position + 2.4) % 100; const needle = $("needle"); if (needle) needle.style.left = `${position}%`; }, 35); $("assemblyBtn").addEventListener("click", () => { clearInterval(timer); finishAssembly(data.index, position); }); }
+  else if (kind === "orders") { const o = order(); content.innerHTML = `<div class="modal-hero">📋</div><h2>${o.name}</h2><div class="order-card"><h3>${o.text}</h3><p>Нужно: <strong>${o.need} 🔩</strong></p><p>Награда: <strong>${fmt(o.reward)} ₽</strong> и ${o.partReward} 🔩</p></div><button class="primary" id="orderComplete" ${state.parts >= o.need ? "" : "disabled"}>ВЫПОЛНИТЬ ЗАКАЗ</button>`; $("orderComplete").addEventListener("click", completeOrder); }
+  else if (kind === "tech") { const techs = [["⚙️","Диагностический стенд","+8% к доходу"],["👷","Команда мастеров","+5% к доходу"],["📣","Реклама сервиса","+3% к доходу"]]; content.innerHTML = `<div class="modal-hero">🧠</div><h2>ТЕХНОЛОГИИ</h2><p>Технологии остаются после открытия нового филиала.</p>${techs.map((t,i) => `<button class="tech" data-tech="${i}"><span>${t[0]}</span><div><b>${t[1]} · LVL ${state.technologies[i]}</b><small>${t[2]}</small></div><em>${fmt(techPrice(i))} ₽</em></button>`).join("")}`; document.querySelectorAll("[data-tech]").forEach(b => b.addEventListener("click", () => { const i = Number(b.dataset.tech), p = techPrice(i); if (state.money < p) return toast(`Нужно ${fmt(p)} ₽`); state.money -= p; state.technologies[i]++; save(); render(); openModal("tech"); })); }
+  else if (kind === "achievements") content.innerHTML = `<div class="modal-hero">🏆</div><h2>ДОСТИЖЕНИЯ</h2>${ACHIEVEMENTS.map((a,i) => `<div class="achievement"><span>${a[0]}</span><div><b>${a[1]}</b><small>${a[2]}</small></div><em>${state.achievements.includes(i) ? "✓" : "🔒"}</em></div>`).join("")}`;
+  else if (kind === "offline") { content.innerHTML = `<div class="modal-hero">🌙</div><h2>ГАРАЖ РАБОТАЛ БЕЗ ТЕБЯ</h2><p>Пока тебя не было, сервис заработал <b>${fmt(data.gain)} ₽</b> за ${Math.floor(data.seconds / 60)} мин.</p><button class="primary" id="modalAction">ЗАБРАТЬ</button><button class="primary" id="doubleOffline">×2 ЗА ВИДЕО</button>`; $("modalAction").addEventListener("click", closeModal); $("doubleOffline").addEventListener("click", () => { closeModal(); showRewarded("offline"); }); }
+  else content.innerHTML = `<div class="modal-hero">💡</div><h2>КАК ИГРАТЬ</h2><ol><li>Ремонтируй автомобиль, чтобы получать деньги и запчасти.</li><li>Покупай бизнесы: они приносят доход даже без кликов.</li><li>Собирай автомобили за запчасти и усиливай всю мастерскую.</li><li>Поймай жёлтую зону в сборке для идеального бонуса.</li><li>Открывай филиалы для постоянного роста.</li></ol><button class="primary" id="modalAction">В ГАРАЖ</button>`; const action = $("modalAction"); if (action) action.addEventListener("click", closeModal); }
+function startAssembly(index) { const car = CARS[index]; if (state.parts < car.parts) return toast(`Нужно ещё ${car.parts - state.parts} 🔩`); openModal("assembly", { index }); }
+function finishAssembly(index, position) { const perfectStart = Math.max(45, 66 - state.coolLevel * 4); const perfect = position >= perfectStart && position <= perfectStart + 13; state.parts -= CARS[index].parts; state.cars[index] = true; state.carQuality[index] = perfect ? .5 : position >= perfectStart - 12 && position <= perfectStart + 25 ? .1 : 0; if (perfect) state.perfectAssemblies++; toast(perfect ? "🔥 ИДЕАЛЬНАЯ СБОРКА! +50%" : "🚗 АВТОМОБИЛЬ СОБРАН!"); beep(perfect ? 1050 : 860, .13); checkAchievements(); save(); closeModal(); render(); }
 function closeModal() { $("modal").classList.add("hidden"); startGameplay(); }
 
-$("clicker").addEventListener("click", click); $("collectBtn").addEventListener("click", collectVault); $("dailyBtn").addEventListener("click", claimDaily); $("questBtn").addEventListener("click", () => openModal("quest")); $("expeditionBtn").addEventListener("click", startExpedition); $("collectionBtn").addEventListener("click", () => openModal("collection")); $("powerUpgrade").addEventListener("click", () => buyUpgrade("power")); $("safeUpgrade").addEventListener("click", () => buyUpgrade("safe")); $("critUpgrade").addEventListener("click", () => buyUpgrade("crit")); $("labBtn").addEventListener("click", () => openModal("lab")); $("prestigeBtn").addEventListener("click", prestige); $("achievementsBtn").addEventListener("click", () => openModal("achievements")); $("helpBtn").addEventListener("click", () => openModal("help")); $("goldenBtn").addEventListener("click", catchGolden); $("modalClose").addEventListener("click", closeModal); $("modal").addEventListener("click", event => { if (event.target.id === "modal") closeModal(); });
-$("soundBtn").addEventListener("click", () => { state.sound = !state.sound; $("soundBtn").textContent = state.sound ? "🔊 Звук" : "🔇 Звук"; save(); }); $("resetBtn").addEventListener("click", () => { if (confirm("Сбросить весь прогресс?")) { localStorage.removeItem(SAVE_KEY); location.reload(); } });
+$("clicker").addEventListener("click", click); $("dailyBtn").addEventListener("click", claimDaily); $("crateBtn").addEventListener("click", claimCrate); $("orderBtn").addEventListener("click", () => openModal("orders")); $("turboBtn").addEventListener("click", () => showRewarded("turbo")); $("powerUpgrade").addEventListener("click", () => buyUpgrade("power")); $("critUpgrade").addEventListener("click", () => buyUpgrade("crit")); $("coolUpgrade").addEventListener("click", () => buyUpgrade("cool")); $("techBtn").addEventListener("click", () => openModal("tech")); $("prestigeBtn").addEventListener("click", prestige); $("specialBtn").addEventListener("click", catchSpecial); $("achievementsBtn").addEventListener("click", () => openModal("achievements")); $("helpBtn").addEventListener("click", () => openModal("help")); $("modalClose").addEventListener("click", closeModal); $("modal").addEventListener("click", e => { if (e.target.id === "modal") closeModal(); }); $("soundBtn").addEventListener("click", () => { state.sound = !state.sound; save(); render(); }); $("resetBtn").addEventListener("click", () => { if (confirm("Сбросить весь прогресс гаража?")) { localStorage.removeItem(SAVE_KEY); location.reload(); } });
+document.querySelectorAll("[data-tab]").forEach(b => b.addEventListener("click", () => { document.querySelectorAll("[data-tab]").forEach(x => x.classList.remove("active")); b.classList.add("active"); if (b.dataset.tab === "business") $("businessPanel").scrollIntoView({ behavior: "smooth", block: "start" }); if (b.dataset.tab === "cars") openModal("cars"); if (b.dataset.tab === "orders") openModal("orders"); if (b.dataset.tab === "repair") $("repairScreen").scrollIntoView({ behavior: "smooth", block: "start" }); }));
 document.addEventListener("visibilitychange", () => { if (document.hidden) { save(); stopGameplay(); } else startGameplay(); });
-
-load(); render(); initYandexSDK();
-let lastTick = performance.now(); let saveTimer = 0;
-function tick(now) { const dt = Math.min(1, (now - lastTick) / 1000); lastTick = now; const clock = Date.now(); if (!document.hidden) addToVault(productionPerSecond() * dt); if (state.expeditionUntil && clock >= state.expeditionUntil && !state.expeditionClaimable) { state.expeditionClaimable = true; toast("🛸 ВЫЛАЗКА ВЕРНУЛАСЬ!"); } if (state.goldenUntil && clock > state.goldenUntil) $("goldenBtn").classList.add("hidden"); saveTimer += dt; if (saveTimer >= SAVE_EVERY_SECONDS) { saveTimer = 0; save(); } render(); requestAnimationFrame(tick); }
-requestAnimationFrame(tick);
+load(); render(); initYandexSDK(); let last = performance.now(), saveTime = 0, renderTime = 0; function tick(now) { const dt = Math.min(1, (now - last) / 1000); last = now; if (!document.hidden) addMoney(income() * dt); if (Date.now() > state.comboUntil) state.combo = 1; if (state.specialUntil && Date.now() > state.specialUntil) $("specialBtn").classList.add("hidden"); saveTime += dt; renderTime += dt; if (saveTime > 5) { saveTime = 0; save(); } if (renderTime > .15) { renderTime = 0; render(); } requestAnimationFrame(tick); } requestAnimationFrame(tick);
