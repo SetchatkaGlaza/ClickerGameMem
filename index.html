@@ -1,56 +1,28 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#12161c">
-  <title>Гаражный Магнат</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="https://yandex.ru/games/sdk/v2" defer></script>
-  <script src="game.js" defer></script>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#10161d">
+  <title>Гаражный Магнат</title><link rel="icon" href="assets/ui/icon_wrench.webp" type="image/webp"><link rel="stylesheet" href="style.css">
+  <script src="https://yandex.ru/games/sdk/v2" defer></script><script src="game.js" defer></script>
 </head>
 <body>
-  <main class="game-shell" id="game">
-    <div class="garage-bg" aria-hidden="true"><img id="garageArtwork" class="garage-artwork" alt=""><span class="lamp lamp-left"></span><span class="lamp lamp-right"></span><span class="shelf"></span><span class="toolboard"></span></div>
-    <header class="topbar">
-      <div><p class="kicker">АВТОСЕРВИС · ПЕРВЫЙ ФИЛИАЛ</p><h1>ГАРАЖНЫЙ <em>МАГНАТ</em></h1></div>
-      <button class="settings" id="soundBtn" aria-label="Включить или выключить звук">🔊</button>
-    </header>
-    <section class="wallet" aria-live="polite">
-      <div><small>ДЕНЬГИ</small><b id="money">0 ₽</b></div>
-      <div><small>ДОХОД</small><b id="income">0 ₽/сек</b></div>
-      <div><small>ЗАПЧАСТИ</small><b id="parts">0 🔩</b></div>
-    </section>
+  <div class="loading-screen" id="loadingScreen" role="status"><img src="assets/ui/icon_wrench.webp" alt=""><h1>ГАРАЖНЫЙ МАГНАТ</h1><p id="loadingText">Загрузка мастерской…</p><div class="loading-track"><i id="loadingBar"></i></div><button id="startBtn" class="primary hidden">ПОЕХАЛИ</button></div>
+  <main class="game-shell" id="game" aria-busy="true">
+    <div class="garage-bg scene" aria-hidden="true"><img id="garageArtwork" class="garage-artwork" alt=""><span class="lamp lamp-left"></span><span class="lamp lamp-right"></span><span class="shelf"></span><span class="toolboard"></span></div>
+    <header class="topbar"><div><p class="kicker">АВТОСЕРВИС · ФИЛИАЛ <span id="branchNumber">1</span></p><h1>ГАРАЖНЫЙ <em>МАГНАТ</em></h1></div><button class="settings" id="soundBtn" aria-label="Включить или выключить звук">🔊</button></header>
+    <section class="wallet" aria-live="polite"><div><small>ДЕНЬГИ</small><b id="money">0 ₽</b></div><div><small>ДОХОД</small><b id="income">0 ₽/сек</b></div><div><small>ЗАПЧАСТИ</small><b id="parts">0 🔩</b></div><div><small>РЕПУТАЦИЯ</small><b id="reputation">0 ★</b></div></section>
     <section class="level-row"><span>ГАРАЖ <b id="garageLevel">LVL 1</b></span><div><i id="levelBar"></i></div><small id="levelProgress">0 / 1K</small></section>
-    <section class="repair-screen" id="repairScreen">
-      <div class="scene-title"><span class="live-dot"></span><button id="garageBtn" aria-label="Выбрать гараж"><b id="garageName">СТАРЫЙ ГАРАЖ</b><span>СМЕНИТЬ ГАРАЖ</span></button><small id="boostLabel">ТЕМП: ГОТОВ</small></div>
-      <button class="car-button" id="clicker" aria-label="Ремонтировать автомобиль">
-        <span class="car-shadow"></span><span class="lift lift-left"></span><span class="lift lift-right"></span>
-        <img id="carArtwork" class="car-artwork" alt="Выбранный автомобиль"><span class="car"><i class="window"></i><i class="windshield"></i><i class="hood"></i><i class="light"></i><i class="wheel back"></i><i class="wheel front"></i><i class="bumper"></i></span>
-        <span class="tap-hint">НАЖМИ, ЧТОБЫ РЕМОНТИРОВАТЬ</span>
-      </button>
-      <div class="heat-panel"><div><span>ТЕМП РЕМОНТА</span><b id="combo">×1</b></div><div class="heat"><i id="comboBar"></i><mark id="coolZone"></mark></div><small id="heatHint">Разгоняй темп, но не перегрей инструмент</small></div>
-    </section>
-    <section class="quick-actions">
-      <button id="dailyBtn"><span>🎁</span><b>Смена</b><small id="dailyStatus">ГОТОВО</small></button>
-      <button id="orderBtn"><span>📋</span><b>Заказ</b><small id="orderStatus">НОВЫЙ</small></button>
-      <button id="turboBtn"><span>⚡</span><b>Турбо</b><small>×3 ЗА ВИДЕО</small></button>
-      <button id="crateBtn"><span>📦</span><b>Поставка</b><small id="crateStatus">ГОТОВО</small></button>
-    </section>
+    <section class="repair-screen" id="repairScreen"><div class="scene-title"><span class="live-dot"></span><button id="garageBtn" aria-label="Выбрать гараж"><b id="garageName">СТАРЫЙ ГАРАЖ</b><span>СМЕНИТЬ ГАРАЖ</span></button><small id="boostLabel">ТЕМП: ГОТОВ</small></div>
+      <button class="car-button" id="clicker" aria-label="Ремонтировать автомобиль"><span class="car-shadow"></span><span class="lift lift-left"></span><span class="lift lift-right"></span><img id="carArtwork" class="car-artwork" alt="Выбранный автомобиль"><span class="car"><i class="window"></i><i class="windshield"></i><i class="hood"></i><i class="light"></i><i class="wheel back"></i><i class="wheel front"></i><i class="bumper"></i></span><span class="tap-hint">НАЖМИ, ЧТОБЫ РЕМОНТИРОВАТЬ</span></button>
+      <div class="heat-panel"><div><span>ТЕМП РЕМОНТА</span><b id="combo">×1</b></div><div class="heat"><i id="comboBar"></i><mark id="coolZone"></mark></div><small id="heatHint">Разгоняй темп — ×10 включает OVERDRIVE</small></div></section>
+    <section class="quick-actions"><button id="dailyBtn"><span>🎁</span><b>Смена</b><small id="dailyStatus">ГОТОВО</small></button><button id="orderBtn"><span>📋</span><b>Заказы</b><small id="orderStatus">НОВЫЕ</small></button><button id="turboBtn"><span>⚡</span><b>Турбо</b><small id="turboStatus">×3 · ВИДЕО</small></button><button id="crateBtn"><img src="assets/ui/crate_parts.webp" alt=""><b>Поставка</b><small id="crateStatus">ГОТОВО</small></button></section>
+    <section class="goal-card"><small>🎯 СЛЕДУЮЩАЯ ЦЕЛЬ</small><b id="goalTitle">Сделайте первый ремонт</b><span id="goalProgress">0 / 1</span></section>
     <section class="panel" id="businessPanel"><div class="panel-head"><div><small>АВТОМАТИЗАЦИЯ</small><h2>МОЙ БИЗНЕС</h2></div><span>Покупай — доход растёт</span></div><div id="workshops"></div></section>
-    <section class="panel"><div class="panel-head"><div><small>ИНСТРУМЕНТЫ</small><h2>УЛУЧШЕНИЯ</h2></div><span>Активный доход</span></div><div class="upgrade-grid">
-      <button class="upgrade" id="powerUpgrade"><span>🔨</span><b>Набор ключей</b><small id="powerInfo">+1 за ремонт</small><em id="powerPrice">100 ₽</em></button>
-      <button class="upgrade" id="critUpgrade"><span>⚡</span><b>Точный удар</b><small id="critInfo">Критический ремонт</small><em id="critPrice">750 ₽</em></button>
-      <button class="upgrade" id="coolUpgrade"><span>❄️</span><b>Охлаждение</b><small id="coolInfo">Шире идеальная зона</small><em id="coolPrice">1K ₽</em></button>
-      <button class="upgrade" id="techBtn"><span>🧠</span><b>Технологии</b><small id="techInfo">Постоянный буст</small><em>ОТКРЫТЬ</em></button>
-    </div></section>
-    <section class="panel evolution"><div class="panel-head"><div><small>ВИЗУАЛЬНЫЙ ПРОГРЕСС</small><h2 id="evolution">СТАРЫЙ ГАРАЖ</h2></div><span id="nextUnlock">10K ₽</span></div><div class="evo-track"><i id="evolutionBar"></i></div><p id="evolutionSub">Один подъёмник, одна мечта — стать автоимперией.</p></section>
-    <section class="panel prestige"><div class="panel-head"><div><small>ДОЛГИЙ ПРОГРЕСС</small><h2>НОВЫЙ ФИЛИАЛ</h2></div><span id="prestigeBonus">+0%</span></div><p>Открой филиал на <b id="prestigeCost">1M ₽</b>. Деньги и бизнес начнутся заново, но автомобили, технологии и репутация останутся.</p><button class="primary" id="prestigeBtn" disabled>ОТКРЫТЬ ФИЛИАЛ</button></section>
-    <nav class="bottom-nav"><button class="active" data-tab="repair">🔧<span>Ремонт</span></button><button data-tab="business">🏭<span>Бизнес</span></button><button data-tab="cars">🚗<span>Авто</span></button><button data-tab="orders">📋<span>Заказы</span></button></nav>
-    <footer><button id="achievementsBtn">🏆 Достижения</button><button id="helpBtn">Как играть</button><button id="resetBtn">Сбросить</button></footer>
+    <section class="panel"><div class="panel-head"><div><small>ИНСТРУМЕНТЫ</small><h2>УЛУЧШЕНИЯ</h2></div><span>Активный доход</span></div><div class="upgrade-grid"><button class="upgrade" id="powerUpgrade"><span>🔨</span><b>Набор ключей</b><small id="powerInfo">+1 за ремонт</small><em id="powerPrice">100 ₽</em></button><button class="upgrade" id="critUpgrade"><span>⚡</span><b>Точный удар</b><small id="critInfo">Критический ремонт</small><em id="critPrice">750 ₽</em></button><button class="upgrade" id="coolUpgrade"><span>❄️</span><b>Охлаждение</b><small id="coolInfo">Шире идеальная зона</small><em id="coolPrice">1K ₽</em></button><button class="upgrade" id="techBtn"><span>🧠</span><b>Технологии</b><small id="techInfo">Постоянный буст</small><em>ОТКРЫТЬ</em></button></div></section>
+    <section class="panel evolution"><div class="panel-head"><div><small>ВИЗУАЛЬНЫЙ ПРОГРЕСС</small><h2 id="evolution">СТАРЫЙ ГАРАЖ</h2></div><span id="nextUnlock">10K ₽</span></div><div class="evo-track"><i id="evolutionBar"></i></div><p id="evolutionSub"></p></section>
+    <section class="panel prestige"><div class="panel-head"><div><small>ДОЛГИЙ ПРОГРЕСС</small><h2>НОВЫЙ ФИЛИАЛ</h2></div><span id="prestigeBonus">+0%</span></div><p>Начните новый цикл: деньги, бизнес и заработок цикла сбросятся. Автомобили, технологии, репутация и общая статистика останутся.</p><button class="primary" id="prestigeBtn" disabled>ОТКРЫТЬ ФИЛИАЛ · <span id="prestigeCost">1M ₽</span></button></section>
+    <nav class="bottom-nav" aria-label="Навигация"><button class="active" data-tab="repair">🔧<span>Ремонт</span></button><button data-tab="business">🏭<span>Бизнес</span></button><button data-tab="cars">🚗<span>Авто</span></button><button data-tab="orders">📋<span>Заказы</span></button></nav><footer><button id="achievementsBtn">🏆 Достижения</button><button id="helpBtn">Как играть</button><button id="resetBtn">Сбросить</button></footer>
   </main>
-  <button class="special-car hidden" id="specialBtn"><span>🏎️</span><b>ЧЁРНЫЙ АВТОМОБИЛЬ</b><small>УСПЕЙ ПОЧИНИТЬ!</small></button>
-  <div class="toast" id="toast" role="status"></div>
-  <div class="modal hidden" id="modal" role="dialog" aria-modal="true"><div class="modal-card"><button id="modalClose" class="modal-close" aria-label="Закрыть">×</button><div id="modalContent"></div></div></div>
-</body>
-</html>
+  <button class="special-car hidden" id="specialBtn"><img src="assets/ui/event_black_car.webp" alt=""><span><b>ЧЁРНЫЙ АВТОМОБИЛЬ</b><small>УСПЕЙ ПОЧИНИТЬ!</small></span></button><div class="toast" id="toast" role="status"></div>
+  <div class="modal hidden" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal-card"><button id="modalClose" class="modal-close" aria-label="Закрыть">×</button><div id="modalContent"></div></div></div>
+</body></html>
