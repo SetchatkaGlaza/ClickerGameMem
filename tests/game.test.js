@@ -4,7 +4,7 @@ const vm=require("node:vm");
 const code=fs.readFileSync("game.js","utf8");
 const store=new Map();
 const document={getElementById(){return null},querySelectorAll(){return[]},addEventListener(){},createElement(){return{style:{},classList:{add(){},remove(){}},remove(){}}},body:{append(){}}};
-const context={console,document,Date,Math,JSON,Number,Array,Object,Set,Promise,Image:class{},localStorage:{getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v),removeItem:k=>store.delete(k)},setTimeout(){return 1},clearTimeout(){},confirm(){return true},location:{reload(){}},performance:{now(){return 0}},window:undefined};
+const context={console,document,Date,Math,JSON,Number,Array,Object,Set,Promise,Image:class{},innerWidth:1024,innerHeight:768,localStorage:{getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v),removeItem:k=>store.delete(k)},setTimeout(){return 1},clearTimeout(){},confirm(){return true},location:{reload(){}},performance:{now(){return 0}},window:undefined};
 vm.createContext(context);vm.runInContext(code,context);
 const run=s=>vm.runInContext(s,context);
 run("state=defaultState()");
