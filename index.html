@@ -29,7 +29,7 @@
   </section>
   <section class="level-row"><span>ГАРАЖ <b id="garageLevel">LVL 1</b></span><div><i id="levelBar"></i></div><small id="levelProgress">0 / 1K</small></section>
   <section class="repair-screen" id="repairScreen">
-    <div class="scene-title"><span class="live-dot"></span><button id="garageBtn"><b id="garageName">СТАРЫЙ ГАРАЖ</b><span>СМЕНИТЬ ГАРАЖ</span></button><small id="boostLabel">ГОТОВ К РЕМОНТУ</small></div>
+    <div class="scene-title"><span class="live-dot"></span><div class="scene-switches"><button id="garageBtn" class="switch-card"><b id="garageName">СТАРЫЙ ГАРАЖ</b><span>🏭 СМЕНИТЬ ГАРАЖ</span></button><button id="carBtn" class="switch-card"><b id="carName">СТАРАЯ ЛАСТОЧКА</b><span>🚗 СМЕНИТЬ АВТО</span></button></div><small id="boostLabel">ГОТОВ К РЕМОНТУ</small></div>
     <button class="car-button" id="clicker" aria-label="Ремонтировать автомобиль">
       <img id="carArtwork" class="car-artwork" alt=""><span class="car-fallback"><i class="window"></i><i class="wheel back"></i><i class="wheel front"></i><i class="light"></i></span>
       <span class="tap-hint">НАЖМИ, ЧТОБЫ РЕМОНТИРОВАТЬ</span>
@@ -44,21 +44,21 @@
   </section>
   <section class="goal-card"><div><small>🎯 СЛЕДУЮЩАЯ ЦЕЛЬ</small><b id="goalTitle">Сделайте первый ремонт</b></div><span id="goalProgress">0 / 1</span></section>
 
-  <section class="panel" id="businessPanel">
+  <section class="panel tab-panel" id="businessPanel">
     <div class="panel-head"><div><small>АВТОМАТИЗАЦИЯ</small><h2>РАЗВИТИЕ БИЗНЕСА</h2></div><span>40 уровней · пассивный доход</span></div>
     <div class="progress-note"><span id="automationIncome">0 ₽/сек</span><span id="automationNext">Следующая: 1K ₽</span></div>
-    <div id="workshops" class="automation-grid"></div>
+    <div id="workshops" class="automation-grid"></div><button class="show-more" id="automationMore">ПОКАЗАТЬ ВСЕ 40 УРОВНЕЙ →</button>
   </section>
 
-  <section class="panel" id="toolsPanel">
+  <section class="panel tab-panel" id="toolsPanel">
     <div class="panel-head"><div><small>ИНСТРУМЕНТЫ</small><h2>АРСЕНАЛ МЕХАНИКА</h2></div><span>30 улучшений</span></div>
     <div class="filter-row"><button class="filter active" data-tool-filter="all">Все</button><button class="filter" data-tool-filter="affordable">Доступные</button><button class="filter" data-tool-filter="owned">Купленные</button></div>
-    <div id="tools" class="tool-grid"></div>
+    <div id="tools" class="tool-grid"></div><button class="show-more" id="toolsMore">ПОКАЗАТЬ ВЕСЬ АРСЕНАЛ →</button>
   </section>
 
-  <section class="panel" id="tasksPanel">
+  <section class="panel tab-panel" id="tasksPanel">
     <div class="panel-head"><div><small>ЗАДАЧИ</small><h2>ПЛАН НА СМЕНУ</h2></div><span>Ежедневные и разовые</span></div>
-    <div id="tasks"></div>
+    <div id="tasks"></div><button class="show-more" id="tasksMore">ОТКРЫТЬ ВСЕ ЗАДАЧИ →</button>
   </section>
 
   <section class="panel evolution"><div class="panel-head"><div><small>ВИЗУАЛЬНЫЙ ПРОГРЕСС</small><h2 id="evolution">СТАРЫЙ ГАРАЖ</h2></div><span id="nextUnlock">10K ₽</span></div><div class="evo-track"><i id="evolutionBar"></i></div><p id="evolutionSub"></p></section>
