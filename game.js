@@ -121,7 +121,12 @@ function resetGame(){const ok=confirm("Вы уверены? Весь прогр�
 function click(e){const now=Date.now();state.combo=now<state.comboUntil?Math.min(10,state.combo+1):1;state.comboUntil=now+COMBO_WINDOW;const b=toolBonuses();let crit=Math.random()<Math.min(.5,.05+state.critLevel*.02+b.crit),gain=clickValue()*state.combo*(crit?5:1)*(state.combo===10?1.5:1);addMoney(gain);state.parts+=Math.max(1,Math.floor(state.combo*b.parts));state.totalClicks++;floatText((crit?"КРИТ! ":"")+"+"+fmt(gain)+" ₽",e?.clientX||innerWidth/2,e?.clientY||300,crit);playClickSound(crit);if(state.combo===10)toast("⚡ OVERDRIVE! Следующий ремонт усилен");checkAchievements();save();markDirty()}
 function buyTool(i){const t=TOOL_NAMES[i],cost=toolCost(i);if(state.runEarned<t.unlock)return toast("Открой инструмент, заработав "+fmt(t.unlock)+" ₽");if(state.money<cost)return toast("Нужно "+fmt(cost)+" ₽");state.money-=cost;state.tools[i]++;state.toolsBought++;toast(t.icon+" "+t.name+" установлен · LVL "+state.tools[i]);playRewardSound();save(true);checkAchievements();markDirty();if(modalKind==="tools")openModal("tools")}
 function buyAutomation(i){const a=AUTO_NAMES[i],cost=autoCost(i);if(state.runEarned<a.unlock)return toast("Нужен оборот "+fmt(a.unlock)+" ₽");if(state.money<cost)return toast("Нужно "+fmt(cost)+" ₽");state.money-=cost;state.automations[i]++;toast(a.icon+" "+a.name+" запущен · LVL "+state.automations[i]);playRewardSound();save(true);checkAchievements();markDirty();if(modalKind==="automation")openModal("automation")}
-function taskValue(t){if(t.kind==="parts")return state.parts;if(t.kind==="autoOwned")return state.automations.reduce((a,b)=>a+(b>0?1:0),0);return state[t.kind]||0}
+function taskValue(t){
+  if(t.kind==="clicks")return state.totalClicks;
+  if(t.kind==="parts")return state.parts;
+  if(t.kind==="autoOwned")return state.automations.reduce((a,b)=>a+(b>0?1:0),0);
+  return state[t.kind]||0;
+}
 function taskRank(t){if(state.claimedTasks.includes(t.id))return[-1,0,0];const value=taskValue(t),ratio=t.target>0?clamp(value/t.target,0,1):0;return[0,-ratio,t.target-value]}
 function sortTasks(list){return list.slice().sort((a,b)=>{const ra=taskRank(a),rb=taskRank(b);for(let i=0;i<ra.length;i++)if(ra[i]!==rb[i])return ra[i]-rb[i];return a.id.localeCompare(b.id)})}
 function makeDaily(){if(state.dailyDate===today()&&state.dailyTasks.length)return state.dailyTasks;const pool=TASKS.slice().sort(()=>Math.random()-.5);state.dailyTasks=pool.slice(0,3).map(t=>({...t,id:"daily-"+t.id}));state.dailyDate=today();state.claimedTasks=state.claimedTasks.filter(id=>!id.startsWith("daily-"));return state.dailyTasks}
