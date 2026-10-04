@@ -1,0 +1,30 @@
+const assert=require("node:assert/strict");
+const {chromium}=require("playwright");
+
+(async()=>{
+  const browser=await chromium.launch({headless:true});
+  const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true});
+  const errors=[];
+  page.on("pageerror",e=>errors.push("pageerror: "+e.message));
+  page.on("console",m=>{if(m.type()==="error")errors.push("console: "+m.text())});
+  await page.route("**/sdk.js",route=>route.fulfill({status:200,contentType:"application/javascript",body:""}));
+  await page.goto("http://127.0.0.1:4173/index.html",{waitUntil:"domcontentloaded"});
+  await page.locator("#startBtn").waitFor({state:"visible",timeout:10000});
+  await page.locator("#startBtn").click();
+  await page.locator("#clicker").click();
+  assert.notEqual(await page.locator("#money").innerText(),"0 ₽","first click must pay");
+  await page.locator("#clicker").click({clickCount:150});
+  await page.locator('[data-tab="tools"]').click();
+  const firstTool=page.locator('[data-tool="0"]');
+  assert.equal(await firstTool.isDisabled(),false,"first tool should become available");
+  await firstTool.click();
+  await page.waitForTimeout(250);
+  await page.reload({waitUntil:"domcontentloaded"});
+  await page.locator("#startBtn").waitFor({state:"visible",timeout:10000});
+  await page.locator("#startBtn").click();
+  assert.notEqual(await page.locator("#money").innerText(),"0 ₽","save should survive reload");
+  assert.equal(await page.locator("#tools").locator('[data-tool="0"]').getAttribute("data-tool"),"0");
+  if(errors.length)throw new Error(errors.join("\n"));
+  await browser.close();
+  console.log("Browser smoke test passed.");
+})().catch(async e=>{console.error(e);process.exitCode=1});
