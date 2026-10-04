@@ -37,7 +37,7 @@ assert.equal(normalized.money,0,"invalid money is normalized");
 assert.equal(normalized.parts,0,"invalid parts are normalized");
 assert.equal(normalized.tools[0],0,"invalid tool levels are normalized");
 assert.equal(normalized.automations[0],0,"invalid automation levels are normalized");
-assert.equal(normalized.selectedGarage,4,"garage index is clamped");
+assert.equal(normalized.selectedGarage,0,"locked garage cannot be selected by corrupted save data");
 assert.equal(normalized.equippedCar,0,"invalid car falls back to first car");
 assert.equal(normalized.cars.length,5,"normalized saves always contain five car slots");
 assert.equal(normalized.cars[0],true,"normalization restores the starter car");
