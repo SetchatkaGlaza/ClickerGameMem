@@ -7,7 +7,7 @@ const fakeElement=()=>({style:{},classList:{add(){},remove(){},contains(){return
 const context={console,document,Date,Math,JSON,Number,Array,Object,Set,Promise,Image:class{},innerWidth:1024,innerHeight:768,localStorage:{getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v),removeItem:k=>store.delete(k)},setTimeout(){return 1},clearTimeout(){},confirm(){return true},location:{reload(){}},performance:{now(){return 0}},window:undefined};
 vm.createContext(context);vm.runInContext(code,context);
 const run=s=>vm.runInContext(s,context);
-run("state=defaultState()");
+run("toast=()=>{};floatText=()=>{};state=defaultState()");
 assert.equal(run("TOOL_NAMES.length"),30,"30 tools exist");
 assert.equal(run("AUTO_NAMES.length"),40,"40 automation tiers exist");
 assert.equal(run("ACHIEVEMENTS.length"),30,"30 achievements exist");
