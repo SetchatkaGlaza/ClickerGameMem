@@ -3,7 +3,7 @@ const fs=require("node:fs");
 const vm=require("node:vm");
 const code=fs.readFileSync("game.js","utf8");
 const store=new Map();
-const document={getElementById(){return null},querySelectorAll(){return[]},addEventListener(){},createElement(){return{style:{},classList:{add(){},remove(){}},remove(){}}},body:{append(){}}};
+const fakeElement=()=>({style:{},classList:{add(){},remove(){},contains(){return false}},textContent:"",append(){},setAttribute(){},getBoundingClientRect(){return{left:0,top:0,width:100,height:100}},remove(){}}); const elements=new Map([["toast",fakeElement()],["clicker",fakeElement()],["modal",fakeElement()]]); const document={getElementById(id){return elements.get(id)||null},querySelectorAll(){return[]},querySelector(){return null},addEventListener(){},createElement(){return fakeElement()},body:{append(){}}};
 const context={console,document,Date,Math,JSON,Number,Array,Object,Set,Promise,Image:class{},innerWidth:1024,innerHeight:768,localStorage:{getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v),removeItem:k=>store.delete(k)},setTimeout(){return 1},clearTimeout(){},confirm(){return true},location:{reload(){}},performance:{now(){return 0}},window:undefined};
 vm.createContext(context);vm.runInContext(code,context);
 const run=s=>vm.runInContext(s,context);
