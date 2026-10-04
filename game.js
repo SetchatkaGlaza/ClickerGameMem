@@ -180,8 +180,21 @@ document.addEventListener("contextmenu",e=>{if(e.target.closest("#game"))e.preve
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("modal").classList.contains("hidden"))closeModal()});window.addEventListener("beforeunload",()=>save(true));document.addEventListener("visibilitychange",()=>{if(document.hidden){save(true);stopGameplay()}else if(gameStarted&&$("modal")?.classList.contains("hidden"))startGameplay()})}
 async function initLocale(sdk){const lang=sdk?.environment?.i18n?.lang||"ru";gameLang=SUPPORTED_LANGS.includes(lang)?lang:"ru";document.documentElement.lang=gameLang}
 async function initYandex(){try{if(typeof window==="undefined"||!window.YaGames)return null;ysdk=await window.YaGames.init();initLocale(ysdk);const pause=()=>{if(gameStarted)stopGameplay()};const resume=()=>{if(gameStarted&&!document.hidden&&$("modal")?.classList.contains("hidden"))startGameplay()};ysdk.on?.("game_api_pause",pause);ysdk.on?.("game_api_resume",resume);return ysdk}catch(e){console.warn("Yandex SDK:",e);return null}}
-function startGameplay(){if(gameStarted&&!gameplayActive){ysdk?.features?.GameplayAPI?.start?.();gameplayActive=true}}
-function stopGameplay(){if(gameplayActive){ysdk?.features?.GameplayAPI?.stop?.();gameplayActive=false}}
+function startGameplay(){
+  if(gameStarted&&!gameplayActive){
+    ysdk?.features?.GameplayAPI?.start?.();
+    gameplayActive=true;
+    if(state.sound)audioCtx?.resume?.();
+  }
+}
+function stopGameplay(){
+  if(gameplayActive){
+    ysdk?.features?.GameplayAPI?.stop?.();
+    gameplayActive=false;
+    // Suspend Web Audio together with gameplay so focus changes and ads cannot leave game sounds running.
+    audioCtx?.suspend?.();
+  }
+}
 function preload(urls){let done=0;return Promise.all(urls.map(src=>new Promise(r=>{const i=new Image();let settled=false;const f=()=>{if(settled)return;settled=true;done++;$("loadingBar").style.width=done/urls.length*100+"%";r()};i.onload=f;i.onerror=f;i.src=src;setTimeout(f,5000)})))}
 function boot(){bind();load();makeDaily();render();const assetsPromise=preload([ASSETS.wrench,...ASSETS.cars,...ASSETS.garages]);const sdkPromise=initYandex();lastFrame=performance.now();function finish(){ $("loadingText").textContent="Мастерская готова"; $("startBtn").classList.remove("hidden"); ysdk?.features?.LoadingAPI?.ready?.(); $("startBtn").onclick=()=>{$("loadingScreen").classList.add("hidden");$("game").setAttribute("aria-busy","false");gameStarted=true;startGameplay();save(true);if(!state.tutorialDone&&state.totalClicks===0&&state.lifetimeEarned===0){openTutorial()}else if(pendingOffline){const data=pendingOffline;pendingOffline=null;openModal("offline",data)}}}
 Promise.all([assetsPromise,sdkPromise]).then(finish,finish);
