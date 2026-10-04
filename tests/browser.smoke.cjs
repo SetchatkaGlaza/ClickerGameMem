@@ -26,6 +26,6 @@ const {chromium}=require("playwright");
   assert.notEqual(await page.locator("#money").innerText(),"0 ₽","save should survive reload");
   assert.equal(await page.locator("#tools").locator('[data-tool="0"]').getAttribute("data-tool"),"0");
   if(errors.length)throw new Error(errors.join("\n"));
-  await browser.close();
   console.log("Browser smoke test passed.");
+  await browser.close();
 })().catch(e=>{console.error(e);process.exitCode=1});
