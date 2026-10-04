@@ -27,7 +27,7 @@ assert.ok(run("income()>0"),"automation creates passive income");
 const before=run("state.money");run("addMoney(income())");assert.ok(run("state.money")>before,"passive payout adds money");
 run("save(true)");
 assert.ok(store.has("garage_tycoon_idle_v3"),"save is written to localStorage");
-run("state.claimedTasks=[];state.totalClicks=499");
+run("state.claimedTasks=[];state.totalClicks=499;state.runEarned=0;state.lifetimeEarned=0;state.toolsBought=0;state.parts=0;state.ordersDone=0;state.totalPlaySeconds=0");
 assert.equal(run("sortTasks(TASKS)[0].id"),"click500","closest unfinished task is prioritized");
 run("state.claimedTasks=['click500']");
 assert.equal(run("sortTasks(TASKS)[0].id"),"click500","claimed tasks stay visible at the top");
