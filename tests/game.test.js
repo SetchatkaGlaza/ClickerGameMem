@@ -21,7 +21,7 @@ assert.ok(run("clickValue()>1"),"tool improves click value");
 run("state.money=100000;state.runEarned=100000;buyAutomation(0)");
 assert.equal(run("state.automations[0]"),1,"automation purchase works");
 assert.ok(run("income()>0"),"automation creates passive income");
-const before=run("state.money");run("addMoney(income())");assert.ok(run("state.money>before"),"passive payout adds money");
+const before=run("state.money");run("addMoney(income())");assert.ok(run("state.money")>before,"passive payout adds money");
 run("save(true)");
 assert.ok(store.has("garage_tycoon_idle_v3"),"save is written to localStorage");
 const saved=JSON.parse(store.get("garage_tycoon_idle_v3"));assert.equal(saved.automations[0],1,"automation persists");
