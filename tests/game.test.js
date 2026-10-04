@@ -29,6 +29,7 @@ run("save(true)");
 assert.ok(store.has("garage_tycoon_idle_v3"),"save is written to localStorage");
 run("state.claimedTasks=[];state.totalClicks=499;state.runEarned=0;state.lifetimeEarned=0;state.toolsBought=0;state.parts=0;state.ordersDone=0;state.totalPlaySeconds=0;state.automations=Array(40).fill(0);state.tools=Array(30).fill(0)");
 assert.equal(run("sortTasks(TASKS)[0].id"),"click500","closest unfinished task is prioritized");
+run("state.totalClicks=500");assert.equal(run("taskValue(TASKS.find(t=>t.id==='click500'))"),500,"click task reads totalClicks");
 run("state.claimedTasks=['click500']");
 assert.equal(run("sortTasks(TASKS)[0].id"),"click500","claimed tasks stay visible at the top");
 const saved=JSON.parse(store.get("garage_tycoon_idle_v3"));assert.equal(saved.automations[0],1,"automation persists");
