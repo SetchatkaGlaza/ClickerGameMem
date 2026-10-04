@@ -5,6 +5,7 @@ const {chromium}=require("playwright");
   const browser=await chromium.launch({headless:true});
   try{
     const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true});
+    await page.addInitScript(() => localStorage.setItem("garage_tycoon_idle_v3", JSON.stringify({tutorialDone:true,lastSave:Date.now()})));
     const errors=[];
     page.on("pageerror",e=>errors.push("pageerror: "+e.message));
     page.on("console",m=>{if(m.type()==="error")errors.push("console: "+m.text())});
