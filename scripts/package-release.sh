@@ -11,6 +11,7 @@ mkdir -p "$RELEASE_DIR/assets"
 
 cp "$ROOT_DIR/index.html" "$ROOT_DIR/game.js" "$ROOT_DIR/style.css" "$RELEASE_DIR/"
 cp -R "$ROOT_DIR/assets/." "$RELEASE_DIR/assets/"
+rm -f "$RELEASE_DIR/assets/ASSET_GUIDE.md" "$RELEASE_DIR/assets/cars/.gitkeep" "$RELEASE_DIR/assets/garages/.gitkeep"
 
 if [[ ! -f "$RELEASE_DIR/index.html" || ! -f "$RELEASE_DIR/game.js" || ! -f "$RELEASE_DIR/style.css" ]]; then
   echo "Release package is missing a required root file."
