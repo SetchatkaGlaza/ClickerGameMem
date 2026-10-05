@@ -23,7 +23,7 @@ if find "$RELEASE_DIR" -type f | grep -Eq '/[^/]*[[:space:][:cntrl:]]|/[^/]*[А-
   exit 1
 fi
 
-if find "$RELEASE_DIR" -type f -name '.DS_Store' -o -name 'Thumbs.db' | grep -q .; then
+if find "$RELEASE_DIR" -type f \( -name '.DS_Store' -o -name 'Thumbs.db' \) | grep -q .; then
   echo "Release package contains an OS metadata file."
   exit 1
 fi
