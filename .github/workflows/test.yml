@@ -16,3 +16,9 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: python3 -m http.server 4173 > /tmp/game-server.log 2>&1 &
       - run: node tests/browser.smoke.cjs
+      - run: bash scripts/package-release.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GarageTycoon-v1.0.0
+          path: dist/GarageTycoon-v1.0.0.zip
+          if-no-files-found: error
